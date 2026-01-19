@@ -11,21 +11,20 @@
 <script src="https://unpkg.com/kaboom@2000.0.0/dist/kaboom.js"></script>
 
 <script>
-    // 1. Initialize Game with Debug enabled
+    // 1. Initialize Game
     kaboom({
         background: [135, 206, 235], // Sky Blue
         scale: 1.5,
-        debug: true, // This will show errors on screen if something breaks
+        debug: true, 
     });
 
     // 2. Define the main scene
     scene("main", () => {
         
-        // Setup Gravity
+        // Setup Gravity (Old version uses gravity() not setGravity())
         gravity(2400);
 
         // --- LEVEL LAYOUT ---
-        // = is Ground, ^ is Spikes, B is Boyfriend
         const levelLayout = [
             "                                      ",
             "                                      ",
@@ -70,11 +69,11 @@
 
         // --- PLAYER ---
         const player = add([
-            // A simple rectangle first to ensure you can see her
+            // A simple invisible box for physics
             rect(30, 50),
-            color(0, 0, 0), // Invisible body (we draw over it)
-            opacity(0),     // Hide the box, show the art
-            // Spawn in the CENTER so she doesn't fall off screen immediately
+            color(0, 0, 0), 
+            opacity(0),     
+            // Spawn in the CENTER
             pos(width() / 2, 0), 
             area(), 
             body(), 
@@ -84,7 +83,6 @@
         ]);
 
         // --- CUSTOM DRAWING (The Girlfriend) ---
-        // Using v2000 safe syntax
         player.onDraw(() => {
             // Black Top
             drawRect({ width: 30, height: 22, pos: vec2(-15, -22), color: rgb(20, 20, 20) });
@@ -198,8 +196,11 @@
     // Start
     go("main");
 
-    // Click to ensure focus
-    onClick(() => focus());
+    // --- FIX IS HERE ---
+    // Replaced 'onClick' with standard Javascript to prevent crashes
+    window.addEventListener('click', () => {
+        focus();
+    });
 </script>
 </body>
 </html>
