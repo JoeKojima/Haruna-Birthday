@@ -30,7 +30,7 @@
     });
 
     // 2. Load Assets
-    loadSprite("player", "haruna_standing.png");
+    loadSprite("player", "haruna.png");
     loadSprite("joe", "joe.png");
     
     // 3. Main Game Scene
@@ -96,9 +96,9 @@
                 // Joe character
                 "@": () => [ 
                     sprite("joe"), 
-                    scale(1.5),
-                    anchor("center"), 
-                    area(), 
+                    scale(0.5),
+                    anchor("bot"), 
+                    area({ scale: 0.8 }), 
                     body({ isStatic: true }),
                     "joe", 
                     { 
@@ -127,10 +127,10 @@
         const player = add([
             sprite("player"),
             pos(100, 200),
-            area(),
+            area({ scale: 0.8 }),
             body(),
-            anchor("center"),
-            scale(1.5),
+            anchor("bot"),
+            scale(0.5),
             "player"
         ]);
 
@@ -190,7 +190,7 @@
             currentBubble = add([
                 rect(300, 100, { radius: 8 }),
                 anchor("bot"),
-                pos(joeObj.pos.x, joeObj.pos.y - 60),
+                pos(joeObj.pos.x, joeObj.pos.y - 80),
                 color(255, 255, 255),
                 outline(3, color(0, 0, 0)),
                 z(50)
@@ -200,7 +200,7 @@
             currentBubbleText = add([
                 text(message, { size: 18, width: 280, align: "center" }),
                 anchor("center"),
-                pos(joeObj.pos.x, joeObj.pos.y - 110),
+                pos(joeObj.pos.x, joeObj.pos.y - 130),
                 color(0, 0, 0),
                 z(51)
             ]);
