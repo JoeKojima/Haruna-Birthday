@@ -3,8 +3,7 @@
 <head>
     <title>Birthday Adventure! ❤️</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; /* Sky blue background */ }
-        /* Instruction overlay */
+        body { margin: 0; overflow: hidden; background: #87CEEB; }
         #instruction {
             position: absolute;
             top: 20%; width: 100%;
@@ -20,80 +19,53 @@
 </head>
 <body>
 
-<div id="instruction">Click to Start!<br><small>Use Arrow Keys/WASD to move, UP or SPACE to jump</small></div>
+<div id="instruction">Click to Start!<br><small>Use Arrow Keys/WASD to move, SPACE to jump</small></div>
 
 <script type="module">
     import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
 
-    // 1. Initialize Game
     kaboom({
-        background: [135, 206, 235], // Sky blue background (like Terraria day)
-        scale: 1.5, // Zoom in a bit more for pixel look
+        background: [135, 206, 235], // Sky blue
+        scale: 1.5,
     });
 
-    // --- ASSET LOADING AREA ---
-    // Right now we are using colored rectangles. 
-    // If you get actual pixel art images later, load them here like this:
-    // loadSprite("girlfriend", "path/to/girlfriend.png");
-    // loadSprite("boyfriend", "path/to/boyfriend.png");
-    // loadSprite("grass", "path/to/grassblock.png");
-
-
-    // 2. Define Game Logic
     scene("main", () => {
-        
-        // Hide instruction
-        onClick(() => {
-            document.getElementById("instruction").style.display = "none";
-        });
+        onClick(() => document.getElementById("instruction").style.display = "none");
 
-        // --- PHYSICS ---
-        // Essential for Terraria style feel. High gravity makes jumping feel snappy.
+        // Physics: High gravity makes the jump feel snappy
         setGravity(2000);
 
-        // --- LEVEL DESIGN ---
-        // A simple left-to-right platforming level
-        // = : Ground block
-        // B : The Boyfriend (NPC standing around)
-        // ^ : Spikes/Hazard (resets level)
-        
         const levelLayout = [
             "                                      ",
             "                                      ",
-            "                                      ",
-            "                                      ",
-            "           B                          ", // Boyfriend standing on a platform
+            "           B                          ",
             "       =========                      ",
             "                                      ",
-            "                       B              ", // Boyfriend standing elsewhere
+            "                       B              ",
             "                   ========           ",
-            "                                      ",
             "      B                               ",
-            "======================================", // The main floor
-            "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^", // Hazard zone below floor
+            "======================================",
+            "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         ];
 
-        // The messages the boyfriend will say in order
-        let messageIndex = 0;
         const boyfriendMessages = [
-            "Happy Birthday, beautiful! Keep going! -->",
-            "Looking cute today with that flower! <3",
+            "Happy Birthday! Keep going! -->",
+            "You look beautiful with that flower! <3",
             "Almost there! I have a surprise at the end.",
         ];
+        let messageIndex = 0;
 
         addLevel(levelLayout, {
             tileWidth: 40,
             tileHeight: 40,
             tiles: {
-                // Ground Block (Green for now)
                 "=": () => [ 
                     rect(40, 40), 
-                    color(34, 139, 34), // Forest Green
+                    color(34, 139, 34), 
                     area(), 
-                    body({ isStatic: true }), // isStatic means it won't fall
+                    body({ isStatic: true }), 
                     "ground" 
                 ],
-                 // Hazard Block (Red spikes at bottom)
                 "^": () => [ 
                     rect(40, 40), 
                     color(255, 0, 0), 
@@ -101,61 +73,94 @@
                     body({ isStatic: true }), 
                     "hazard" 
                 ],
-                // Boyfriend NPC (Blue block for now)
                 "B": () => [
-                    rect(30, 50), // Taller like a person
+                    rect(30, 50), 
                     color(0, 0, 255), 
                     area(),
                     body({ isStatic: true }),
-                    anchor("bot"), // Anchor bottom so he stands on top of blocks
+                    anchor("bot"), 
                     "boyfriend",
-                    { hasSpoken: false } // Custom flag so he only speaks once per encounter
+                    { hasSpoken: false } 
                 ]
             }
         });
 
         // --- PLAYER CHARACTER ---
         const player = add([
-            rect(30, 50), // Placeholder for the Girlfriend sprite
-            pos(100, 0), // Start position
-            color(255, 105, 180), // Hot Pink placeholder
+            // Hitbox (Invisible, we draw the art manually below)
+            rect(30, 50), 
+            color(0, 0, 0, 0), // Invisible rect
+            pos(100, 0), 
             area(), 
-            body(), // Normal body adapts to gravity
+            // jumpForce is set HERE inside body(). No duplicate properties!
+            body({ jumpForce: 900 }), 
             anchor("bot"), 
             "player",
-            { speed: 300, jumpForce: 850 } // Custom stats
+            { speed: 300 }
         ]);
 
-        // Smooth Camera Follow
-        player.onUpdate(() => {
-            // Lerp makes the camera lag slightly behind for smoother feel
-            camPos(lerp(camPos(), player.pos, 0.1));
-            // If fallen off map
-            if (player.pos.y > height() + 200) {
-                go("main");
-            }
+        // --- CUSTOM DRAWING FUNCTION ---
+        // This draws her "Sprite" using shapes instead of an image file.
+        // It prevents the "drawImage" crash.
+        player.onDraw(() => {
+            // 1. Body (Black Top)
+            drawRect({
+                width: 30, height: 22,
+                pos: vec2(-15, -22), // Relative to player center
+                color: rgb(20, 20, 20)
+            });
+            // 2. Head (Skin Tone)
+            drawRect({
+                width: 22, height: 22,
+                pos: vec2(-11, -44),
+                color: rgb(255, 220, 177)
+            });
+            // 3. Hair (Dark Brown - Back)
+            drawRect({
+                width: 26, height: 10,
+                pos: vec2(-13, -46),
+                color: rgb(50, 40, 40)
+            });
+            // 4. Hair (Long sides)
+            drawRect({
+                width: 8, height: 30,
+                pos: vec2(-13, -40),
+                color: rgb(50, 40, 40)
+            });
+            drawRect({
+                width: 8, height: 30,
+                pos: vec2(5, -40),
+                color: rgb(50, 40, 40)
+            });
+            // 5. THE FLOWER (Red Hibiscus on the right)
+            drawCircle({
+                radius: 8,
+                pos: vec2(12, -40),
+                color: rgb(255, 0, 50) 
+            });
         });
 
-        // --- PLATFORMER CONTROLS ---
-        onKeyDown("left", () => player.move(-player.speed, 0));
-        onKeyDown("a", () => player.move(-player.speed, 0));
-        
-        onKeyDown("right", () => player.move(player.speed, 0));
-        onKeyDown("d", () => player.move(player.speed, 0));
+        // Camera Follow
+        player.onUpdate(() => {
+            camPos(lerp(camPos(), player.pos, 0.1));
+            if (player.pos.y > height() + 200) go("main");
+        });
 
-        // Jump function
+        // Controls
+        onKeyDown("left", () => player.move(-player.speed, 0));
+        onKeyDown("right", () => player.move(player.speed, 0));
+
         function jump() {
-            // Only allow jumping if currently standing on something
             if (player.isGrounded()) {
-                player.jump(player.jumpForce);
+                player.jump(); 
             }
         }
+        
         onKeyPress("up", jump);
         onKeyPress("w", jump);
         onKeyPress("space", jump);
 
-
-        // --- UI TEXT BOX ---
+        // --- UI & MESSAGES ---
         const textBox = add([
             rect(width() - 100, 100, { radius: 8 }),
             anchor("bottom"),
@@ -176,41 +181,24 @@
             z(101)
         ]);
 
-        // Function to show text temporarily
         function showMessage(txt) {
             textBox.opacity = 0.8;
             textMessage.opacity = 1;
             textMessage.text = txt;
-            // Keep message on screen for 3 seconds then fade
             wait(3, () => {
                  textBox.opacity = 0;
                  textMessage.opacity = 0;
             })
         }
 
-        // --- INTERACTIONS ---
+        player.onCollide("hazard", () => go("main"));
 
-        // Hitting spikes restarts level
-        player.onCollide("hazard", () => {
-            go("main");
-        })
-
-        // Meeting the boyfriend
         player.onCollide("boyfriend", (bf) => {
             if (!bf.hasSpoken) {
-                // Get the next message
-                let msg = boyfriendMessages[messageIndex];
-                
-                // If we run out of messages, just repeat the last one or say something else
-                if (!msg) msg = "Hi honey! <3";
-
+                let msg = boyfriendMessages[messageIndex] || "I love you! <3";
                 showMessage(msg);
                 bf.hasSpoken = true;
-                
-                // Increment index for next boyfriend encounter
                 messageIndex++;
-
-                // Optional: If it's the last boyfriend, trigger win after a delay
                 if (messageIndex >= boyfriendMessages.length) {
                      wait(4, () => go("win"));
                 }
@@ -218,27 +206,29 @@
         });
     });
 
-    // Celebration Scene (Same as before)
     scene("win", () => {
-        function spawnConfetti() {
-            add([
-                rect(rand(10, 20), rand(10, 20)),
-                pos(rand(0, width()), -20), // Start above screen
-                color(rand(0, 255), rand(0, 255), rand(0, 255)),
-                area(),
-                move(DOWN, rand(100, 300)),
-                offscreen({ destroy: true }),
-            ]);
-            wait(0.05, spawnConfetti);
-        }
-        spawnConfetti();
-
         add([
             text("HAPPY BIRTHDAY!", { size: 48, align: "center" }),
             pos(center()),
             anchor("center"),
             color(255, 0, 100)
         ]);
+        
+        // Confetti!
+        function spawnConfetti() {
+            add([
+                rect(rand(10, 20), rand(10, 20)),
+                pos(rand(0, width()), -20),
+                color(rand(0, 255), rand(0, 255), rand(0, 255)),
+                area(),
+                move(DOWN, rand(100, 300)),
+                offscreen({ destroy: true }),
+            ]);
+            wait(0.1, spawnConfetti);
+        }
+        spawnConfetti();
+
+        onKeyPress("space", () => go("main"));
     });
 
     go("main");
