@@ -4,37 +4,80 @@
     <title>Birthday Adventure! ❤️</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; }
-        #instruction {
+        /* Loading / Start Screen */
+        #ui-layer {
             position: absolute;
-            top: 20%; width: 100%;
-            text-align: center;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #instruction {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
             color: white;
             font-family: sans-serif;
             font-size: 24px;
-            text-shadow: 2px 2px 4px #000;
-            pointer-events: none;
-            z-index: 1000;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        button {
+            pointer-events: auto;
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #ff69b4;
+            border: none;
+            color: white;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
 
-<div id="instruction">Click to Start!<br><small>Use Arrow Keys/WASD to move, SPACE to jump</small></div>
+<div id="ui-layer">
+    <div id="instruction">
+        <h1>Happy Birthday! ❤️</h1>
+        <p>Use <b>Arrow Keys</b> to Move</p>
+        <p>Press <b>Space</b> to Jump</p>
+        <button onclick="startGame()">CLICK TO START</button>
+    </div>
+</div>
 
-<script type="module">
-    import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
+<script src="https://unpkg.com/kaboom@3000.0.1/dist/kaboom.js"></script>
 
+<script>
+    // 2. Initialize Game (global: true allows us to use functions without 'k.')
     kaboom({
-        background: [135, 206, 235], // Sky blue
+        background: [135, 206, 235], // Sky Blue
         scale: 1.5,
+        global: true, // This is CRITICAL for the code below to work
     });
 
-    scene("main", () => {
-        onClick(() => document.getElementById("instruction").style.display = "none");
+    // 3. Define the "Start" function triggered by the button
+    window.startGame = function() {
+        document.getElementById("ui-layer").style.display = "none";
+        
+        // Focus the canvas so keys work immediately
+        const canvas = document.querySelector("canvas");
+        if (canvas) canvas.focus();
+        
+        // Start the music or game loop here if needed
+        go("main");
+    };
 
-        // Physics: High gravity makes the jump feel snappy
+    // 4. Define the Game Scene
+    scene("main", () => {
+        // Setup Physics
         setGravity(2000);
 
+        // --- LEVEL LAYOUT ---
+        // B = Boyfriend, ^ = Spikes, = = Ground
         const levelLayout = [
             "                                      ",
             "                                      ",
@@ -48,6 +91,7 @@
             "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         ];
 
+        // Messages
         const boyfriendMessages = [
             "Happy Birthday! Keep going! -->",
             "You look beautiful with that flower! <3",
@@ -55,27 +99,28 @@
         ];
         let messageIndex = 0;
 
+        // Draw Level
         addLevel(levelLayout, {
             tileWidth: 40,
             tileHeight: 40,
             tiles: {
                 "=": () => [ 
                     rect(40, 40), 
-                    color(34, 139, 34), 
+                    color(34, 139, 34), // Green Ground
                     area(), 
                     body({ isStatic: true }), 
                     "ground" 
                 ],
                 "^": () => [ 
                     rect(40, 40), 
-                    color(255, 0, 0), 
+                    color(255, 0, 0), // Red Spikes
                     area(), 
                     body({ isStatic: true }), 
                     "hazard" 
                 ],
                 "B": () => [
                     rect(30, 50), 
-                    color(0, 0, 255), 
+                    color(0, 0, 255), // Blue Boyfriend placeholder
                     area(),
                     body({ isStatic: true }),
                     anchor("bot"), 
@@ -85,89 +130,58 @@
             }
         });
 
-        // --- PLAYER CHARACTER ---
+        // --- PLAYER (Custom Drawing) ---
         const player = add([
-            // Hitbox (Invisible, we draw the art manually below)
-            rect(30, 50), 
-            color(0, 0, 0, 0), // Invisible rect
+            rect(30, 50), // Invisible hitbox
+            color(0, 0, 0, 0), 
             pos(100, 0), 
             area(), 
-            // jumpForce is set HERE inside body(). No duplicate properties!
             body({ jumpForce: 900 }), 
             anchor("bot"), 
             "player",
             { speed: 300 }
         ]);
 
-        // --- CUSTOM DRAWING FUNCTION ---
-        // This draws her "Sprite" using shapes instead of an image file.
-        // It prevents the "drawImage" crash.
+        // Draw the girlfriend sprite manually (No image file needed!)
         player.onDraw(() => {
-            // 1. Body (Black Top)
-            drawRect({
-                width: 30, height: 22,
-                pos: vec2(-15, -22), // Relative to player center
-                color: rgb(20, 20, 20)
-            });
-            // 2. Head (Skin Tone)
-            drawRect({
-                width: 22, height: 22,
-                pos: vec2(-11, -44),
-                color: rgb(255, 220, 177)
-            });
-            // 3. Hair (Dark Brown - Back)
-            drawRect({
-                width: 26, height: 10,
-                pos: vec2(-13, -46),
-                color: rgb(50, 40, 40)
-            });
-            // 4. Hair (Long sides)
-            drawRect({
-                width: 8, height: 30,
-                pos: vec2(-13, -40),
-                color: rgb(50, 40, 40)
-            });
-            drawRect({
-                width: 8, height: 30,
-                pos: vec2(5, -40),
-                color: rgb(50, 40, 40)
-            });
-            // 5. THE FLOWER (Red Hibiscus on the right)
-            drawCircle({
-                radius: 8,
-                pos: vec2(12, -40),
-                color: rgb(255, 0, 50) 
-            });
+            // Black Top
+            drawRect({ width: 30, height: 22, pos: vec2(-15, -22), color: rgb(20, 20, 20) });
+            // Skin Head
+            drawRect({ width: 22, height: 22, pos: vec2(-11, -44), color: rgb(255, 220, 177) });
+            // Dark Hair (Back)
+            drawRect({ width: 26, height: 10, pos: vec2(-13, -46), color: rgb(50, 40, 40) });
+            // Dark Hair (Sides)
+            drawRect({ width: 8, height: 30, pos: vec2(-13, -40), color: rgb(50, 40, 40) });
+            drawRect({ width: 8, height: 30, pos: vec2(5, -40), color: rgb(50, 40, 40) });
+            // Red Flower
+            drawCircle({ radius: 8, pos: vec2(12, -40), color: rgb(255, 0, 50) });
         });
 
-        // Camera Follow
+        // Camera Logic
         player.onUpdate(() => {
-            camPos(lerp(camPos(), player.pos, 0.1));
-            if (player.pos.y > height() + 200) go("main");
+            camPos(player.pos);
+            if (player.pos.y > 1000) go("main"); // Respawn if fall
         });
 
         // Controls
         onKeyDown("left", () => player.move(-player.speed, 0));
         onKeyDown("right", () => player.move(player.speed, 0));
-
-        function jump() {
-            if (player.isGrounded()) {
-                player.jump(); 
-            }
-        }
         
+        function jump() {
+            if (player.isGrounded()) player.jump();
+        }
+        onKeyPress("space", jump);
         onKeyPress("up", jump);
         onKeyPress("w", jump);
-        onKeyPress("space", jump);
 
-        // --- UI & MESSAGES ---
+        // --- UI TEXT ---
         const textBox = add([
             rect(width() - 100, 100, { radius: 8 }),
             anchor("bottom"),
             pos(center().x, height() - 20),
             color(0, 0, 0),
             opacity(0),
-            fixed(), 
+            fixed(),
             z(100)
         ]);
         
@@ -188,9 +202,10 @@
             wait(3, () => {
                  textBox.opacity = 0;
                  textMessage.opacity = 0;
-            })
+            });
         }
 
+        // --- COLLISIONS ---
         player.onCollide("hazard", () => go("main"));
 
         player.onCollide("boyfriend", (bf) => {
@@ -200,7 +215,7 @@
                 bf.hasSpoken = true;
                 messageIndex++;
                 if (messageIndex >= boyfriendMessages.length) {
-                     wait(4, () => go("win"));
+                    wait(4, () => go("win"));
                 }
             }
         });
@@ -208,32 +223,16 @@
 
     scene("win", () => {
         add([
-            text("HAPPY BIRTHDAY!", { size: 48, align: "center" }),
+            text("HAPPY BIRTHDAY!", { size: 48, align: "center", width: width() }),
             pos(center()),
             anchor("center"),
             color(255, 0, 100)
         ]);
-        
-        // Confetti!
-        function spawnConfetti() {
-            add([
-                rect(rand(10, 20), rand(10, 20)),
-                pos(rand(0, width()), -20),
-                color(rand(0, 255), rand(0, 255), rand(0, 255)),
-                area(),
-                move(DOWN, rand(100, 300)),
-                offscreen({ destroy: true }),
-            ]);
-            wait(0.1, spawnConfetti);
-        }
-        spawnConfetti();
-
         onKeyPress("space", () => go("main"));
     });
 
-    go("main");
-    focus();
-
+    // Don't start strictly until button press, but we init here
+    // We stay on "blue" screen behind the UI until user clicks start
 </script>
 </body>
 </html>
