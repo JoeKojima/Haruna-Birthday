@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Birthday Quest</title>
+    <title>Birthday Quest ❤️</title>
     <style>
         body { margin: 0; overflow: hidden; background: #333; }
     </style>
 </head>
 <body>
 
-<script src="https://unpkg.com/kaboom@2000.0.0/dist/kaboom.js"></script>
+<script src="https://unpkg.com/kaboom@3000.0.1/dist/kaboom.js"></script>
 
 <script>
     // 1. Initialize Game
     kaboom({
         background: [135, 206, 235], // Sky Blue
         scale: 1.5,
-        debug: true, 
+        global: true, // This makes all functions (add, scene, etc.) work globally
     });
 
-    // 2. Define the main scene
+    // 2. Define Main Scene
     scene("main", () => {
         
-        // Setup Gravity (Old version uses gravity() not setGravity())
-        gravity(2400);
+        // Setup Physics
+        setGravity(2000);
 
         // --- LEVEL LAYOUT ---
         const levelLayout = [
@@ -38,51 +38,58 @@
             "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         ];
 
+        const boyfriendMessages = [
+            "Happy Birthday! Keep going! -->",
+            "You look beautiful today! <3",
+            "Almost there! Surprise at the end!",
+        ];
+        let messageIndex = 0;
+
         // Draw the Level
-        const level = addLevel(levelLayout, {
-            width: 40,
-            height: 40,
-            "=": () => [ 
-                rect(40, 40), 
-                color(34, 139, 34), // Green Ground
-                area(), 
-                solid(), 
-                "ground" 
-            ],
-            "^": () => [ 
-                rect(40, 40), 
-                color(255, 0, 0), // Red Spikes
-                area(), 
-                solid(), 
-                "hazard" 
-            ],
-            "B": () => [
-                rect(30, 50), 
-                color(0, 0, 255), // Blue Boyfriend 
-                area(),
-                solid(),
-                origin("bot"), 
-                "boyfriend",
-                { hasSpoken: false } 
-            ]
+        addLevel(levelLayout, {
+            tileWidth: 40,
+            tileHeight: 40,
+            tiles: {
+                "=": () => [ 
+                    rect(40, 40), 
+                    color(34, 139, 34), // Green Ground
+                    area(), 
+                    body({ isStatic: true }), 
+                    "ground" 
+                ],
+                "^": () => [ 
+                    rect(40, 40), 
+                    color(255, 0, 0), // Red Spikes
+                    area(), 
+                    body({ isStatic: true }), 
+                    "hazard" 
+                ],
+                "B": () => [
+                    rect(30, 50), 
+                    color(0, 0, 255), // Blue Boyfriend 
+                    area(),
+                    body({ isStatic: true }),
+                    anchor("bot"), 
+                    "boyfriend",
+                    { hasSpoken: false } 
+                ]
+            }
         });
 
         // --- PLAYER ---
         const player = add([
-            // A simple invisible box for physics
-            rect(30, 50),
-            color(0, 0, 0), 
-            opacity(0),     
-            // Spawn in the CENTER
-            pos(width() / 2, 0), 
+            rect(30, 50),       // Hitbox (invisible-ish)
+            color(0,0,0,0),     // Transparent
+            pos(100, 0),        // Start in air
             area(), 
-            body(), 
-            origin("bot"), 
+            body({ jumpForce: 900 }), 
+            anchor("bot"), 
             "player",
             { speed: 300 }
         ]);
 
         // --- CUSTOM DRAWING (The Girlfriend) ---
+        // This is the v3000 way that was failing in the old version
         player.onDraw(() => {
             // Black Top
             drawRect({ width: 30, height: 22, pos: vec2(-15, -22), color: rgb(20, 20, 20) });
@@ -99,8 +106,10 @@
 
         // --- CAMERA ---
         player.onUpdate(() => {
+            // Lock camera directly to player (no smoothing to prevent "blue screen" effect)
             camPos(player.pos);
-            // Respawn if she falls too low
+            
+            // Respawn if falls
             if (player.pos.y > 1000) {
                 go("main");
             }
@@ -114,7 +123,7 @@
         
         function jump() {
             if (player.isGrounded()) {
-                player.jump(900);
+                player.jump();
             }
         }
         
@@ -122,18 +131,10 @@
         onKeyPress("up", jump);
         onKeyPress("w", jump);
 
-        // --- MESSAGES ---
-        const messages = [
-            "Happy Birthday! Keep going! -->",
-            "You look beautiful today! <3",
-            "Almost there! Surprise at the end!",
-        ];
-        let messageIndex = 0;
-
-        // UI Text
+        // --- UI MESSAGES ---
         const textBox = add([
             rect(width() - 100, 100, { radius: 8 }),
-            origin("bot"),
+            anchor("bottom"),
             pos(center().x, height() - 20),
             color(0, 0, 0),
             opacity(0),
@@ -143,7 +144,7 @@
         
         const textMessage = add([
             text("", { size: 24, width: width() - 120, align: "center" }),
-            origin("bot"),
+            anchor("bottom"),
             pos(center().x, height() - 50),
             color(255, 255, 255),
             opacity(0),
@@ -151,30 +152,29 @@
             z(101)
         ]);
 
+        function showMessage(txt) {
+            textBox.opacity = 0.8;
+            textMessage.opacity = 1;
+            textMessage.text = txt;
+            wait(3, () => {
+                 textBox.opacity = 0;
+                 textMessage.opacity = 0;
+            });
+        }
+
+        // --- COLLISIONS ---
         player.onCollide("hazard", () => {
             shake(20);
-            wait(0.5, () => go("main"));
+            go("main");
         });
 
         player.onCollide("boyfriend", (bf) => {
             if (!bf.hasSpoken) {
-                let msg = messages[messageIndex] || "I love you! <3";
-                
-                // Show Message
-                textBox.opacity = 0.8;
-                textMessage.opacity = 1;
-                textMessage.text = msg;
-                
-                // Hide after 3 seconds
-                wait(3, () => {
-                     textBox.opacity = 0;
-                     textMessage.opacity = 0;
-                });
-
+                let msg = boyfriendMessages[messageIndex] || "I love you! <3";
+                showMessage(msg);
                 bf.hasSpoken = true;
                 messageIndex++;
-                
-                if (messageIndex >= messages.length) {
+                if (messageIndex >= boyfriendMessages.length) {
                     wait(4, () => go("win"));
                 }
             }
@@ -184,23 +184,33 @@
     // Win Scene
     scene("win", () => {
         add([
-            text("HAPPY BIRTHDAY!", { size: 48 }),
-            origin("center"),
+            text("HAPPY BIRTHDAY!", { size: 48, align: "center" }),
             pos(center()),
+            anchor("center"),
             color(255, 0, 100)
         ]);
         
+        // Simple confetti
+        loop(0.1, () => {
+            add([
+                rect(10, 10),
+                pos(rand(0, width()), 0),
+                color(rand(0, 255), rand(0, 255), rand(0, 255)),
+                move(DOWN, rand(100, 300)),
+                offscreen({ destroy: true })
+            ])
+        });
+
         onKeyPress("space", () => go("main"));
     });
 
-    // Start
+    // Start Game
     go("main");
+    
+    // Ensure window focus
+    window.focus();
+    onClick(() => window.focus());
 
-    // --- FIX IS HERE ---
-    // Replaced 'onClick' with standard Javascript to prevent crashes
-    window.addEventListener('click', () => {
-        focus();
-    });
 </script>
 </body>
 </html>
