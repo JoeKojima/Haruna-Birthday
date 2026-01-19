@@ -20,49 +20,43 @@
 </head>
 <body>
 
-<div id="instruction">Use Arrow Keys or WASD to Move & Jump<br>Bump into Joe to talk!</div>
-
 <script type="module">
     import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
 
     // 1. Initialize Game
     kaboom({
-        background: [135, 206, 235], // Sky Blue
+        background: [135, 206, 235],
         scale: 1,
     });
 
     // 2. Load Assets
-    // Make sure these files exist in your folder!
-    loadSprite("player", "haruna_standing.png"); 
+    loadSprite("player", "haruna.png");
     loadSprite("joe", "joe.png");
-
+    
     // 3. Main Game Scene
     scene("main", () => {
         
         setGravity(2000);
 
-        // Hide instruction on click
         onClick(() => {
             const instr = document.getElementById("instruction");
             if (instr) instr.style.display = "none";
         });
 
-        // --- LEVEL DESIGN ---
-        // = : Grass
-        // # : Dirt
-        // * : JOE (The NPC)
+        // Level Layout
+        // @ : Joe character sprite
         // ! : The Goal
         
         const levelLayout = [
             "                                                                     ",
             "                                                                     ",
-            "                                   * ",
+            "                                   @ ",
             "                                 ===                                 ",
             "                                                                     ",
-            "                  * ===                 ===                    ",
+            "                  @ ===                 ===                    ",
             "                ====                                  !              ",
             "                                                    =====            ",
-            "       * ==                                   #######           ",
+            "       @ ==                                   #######           ",
             "     ====                 ===         ===         #########          ",
             "                                                 ###########         ",
             "===========  ================   ============================  =======",
@@ -73,47 +67,45 @@
         const messages = [
             "I love you so much! <3", 
             "You make me the happiest person.",
-            "Keep going! Almost there!",
-            "You can do it, Haruna!"
+            "Keep going! Almost there!"
         ];
+
+        let messageIndex = 0;
 
         // Define the Map
         addLevel(levelLayout, {
             tileWidth: 48,
             tileHeight: 48,
             tiles: {
-                // Grass Block
                 "=": () => [ 
                     rect(48, 48), 
-                    color(34, 139, 34), 
-                    outline(4, color(20, 100, 20)), 
+                    color(34, 139, 34),
+                    outline(4, color(20, 100, 20)),
                     area(), 
                     body({ isStatic: true }), 
                     "ground" 
                 ],
-                // Dirt Block
                 "#": () => [ 
                     rect(48, 48), 
-                    color(139, 69, 19), 
+                    color(139, 69, 19),
                     outline(4, color(100, 50, 10)), 
                     area(), 
                     body({ isStatic: true }), 
                     "ground" 
                 ],
-                // JOE (The NPC)
-                "*": () => [ 
+                // Joe character
+                "@": () => [ 
                     sprite("joe"), 
-                    scale(1), // Adjust scale if image is too big
+                    scale(1.5),
                     anchor("center"), 
                     area(), 
-                    body({ isStatic: true }), 
+                    body({ isStatic: true }),
                     "joe", 
                     { 
-                        msg: messages[Math.floor(Math.random() * messages.length)],
-                        hasSpoken: false // <--- Fixed: CamelCase used here
+                        msg: messages[messageIndex++ % messages.length],
+                        hasSpoken: false 
                     }
                 ],
-                // The Goal
                 "!": () => [ 
                     rect(50, 50), 
                     color(255, 215, 0), 
@@ -123,26 +115,32 @@
                     body({ isStatic: true }), 
                     "goal",
                     {
-                        update() { this.angle += 120 * dt(); }
+                        update() {
+                            this.angle += 120 * dt();
+                        }
                     }
                 ]
             }
         });
 
-        // --- PLAYER (HARUNA) ---
+        // --- PLAYER ---
         const player = add([
             sprite("player"),
             pos(100, 200),
             area(),
             body(),
             anchor("center"),
+            scale(1.5),
             "player"
         ]);
 
         // Camera Follow
         player.onUpdate(() => {
             camPos(player.pos.x, 400);
-            if (player.pos.y > 1000) go("lose");
+            
+            if (player.pos.y > 1000) {
+                go("lose");
+            }
         });
 
         // --- CONTROLS ---
@@ -177,47 +175,53 @@
         onKeyPress("w", jump);
         onKeyPress("up", jump);
 
-        // --- INTERACTION: SPEECH BUBBLE ---
-        
-        player.onCollide("joe", (joe) => {
-            // Only speak if he hasn't spoken yet
-            if (joe.hasSpoken) return;
-            joe.hasSpoken = true;
+        // --- SPEECH BUBBLE ---
+        let currentBubble = null;
+        let currentBubbleText = null;
 
-            // 1. Create the Bubble Background
-            const bubbleWidth = 200;
-            const bubbleHeight = 80;
+        function createSpeechBubble(joeObj, message) {
+            // Remove existing bubble if any
+            if (currentBubble) {
+                destroy(currentBubble);
+                destroy(currentBubbleText);
+            }
 
-            const bubble = add([
-                rect(bubbleWidth, bubbleHeight, { radius: 10 }),
+            // Create bubble background
+            currentBubble = add([
+                rect(300, 100, { radius: 8 }),
+                anchor("bot"),
+                pos(joeObj.pos.x, joeObj.pos.y - 60),
                 color(255, 255, 255),
-                outline(2, color(0, 0, 0)),
-                anchor("center"),
-                pos(joe.pos.x, joe.pos.y - 70), 
-                z(100),
-                lifespan(3, { fade: 0.5 }) 
+                outline(3, color(0, 0, 0)),
+                z(50)
             ]);
 
-            // 2. Add the Text inside the bubble
-            bubble.add([
-                text(joe.msg, { 
-                    size: 16, 
-                    width: bubbleWidth - 20, 
-                    align: "center",
-                }),
+            // Create bubble text
+            currentBubbleText = add([
+                text(message, { size: 18, width: 280, align: "center" }),
                 anchor("center"),
-                color(0, 0, 0), // Text Color Black
+                pos(joeObj.pos.x, joeObj.pos.y - 110),
+                color(0, 0, 0),
+                z(51)
             ]);
 
-            // 3. Pointer Triangle
-            add([
-                polygon([vec2(-10, 0), vec2(10, 0), vec2(0, 15)]),
-                pos(joe.pos.x, joe.pos.y - 32),
-                color(255, 255, 255),
-                anchor("top"),
-                z(100),
-                lifespan(3, { fade: 0.5 })
-            ]);
+            // Auto-hide after 4 seconds
+            wait(4, () => {
+                if (currentBubble) {
+                    destroy(currentBubble);
+                    destroy(currentBubbleText);
+                    currentBubble = null;
+                    currentBubbleText = null;
+                }
+            });
+        }
+
+        // Interaction with Joe
+        player.onCollide("joe", (joeObj) => {
+            if (!joeObj.hasSpoken) {
+                createSpeechBubble(joeObj, joeObj.msg);
+                joeObj.hasSpoken = true;
+            }
         });
 
         // Win
