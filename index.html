@@ -20,42 +20,40 @@
 </head>
 <body>
 
-<div id="instruction">Click anywhere to start!<br><small>(Arrows/WASD to Move & SPACE to Jump)</small></div>
+<div id="instruction">Use Arrow Keys or WASD to Move & Jump</div>
 
 <script type="module">
     import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
 
     // 1. Initialize Game
     kaboom({
-        background: [135, 206, 235], // "Terraria" Sky Blue
+        background: [135, 206, 235], // Sky Blue
         scale: 1,
     });
 
-    // 2. Load Assets (Using standard Kaboom assets for reliability)
-    loadSprite("player", "https://kaboomjs.com/sprites/bean.png"); // The classic bean character
-    loadSprite("heart", "https://kaboomjs.com/sprites/heart.png"); // Heart sprite
+    // 2. Load Assets
+    // IMPORTANT: Make sure haruna.png and joe.png are in the same folder as this file!
+    loadSprite("player", "haruna_standing.png"); 
+    loadSprite("joe", "joe.png");
     
-    // We will procedurally generate the ground blocks to look like pixel art
-    // to ensure the game works without needing to download external texture files.
+    // We will procedurally generate the ground blocks (no images needed for ground)
 
     // 3. Main Game Scene
     scene("main", () => {
         
-        // Enable Gravity (The key to side-scrollers)
         setGravity(2000);
 
-        // Hide instruction
+        // Hide instruction on click
         onClick(() => {
             const instr = document.getElementById("instruction");
             if (instr) instr.style.display = "none";
         });
 
         // --- LEVEL DESIGN ---
-        // = : Grass Block (Top layer)
-        // # : Dirt Block (Underground)
-        // - : Floating Platform
-        // * : Heart (Message)
-        // ! : The Surprise (Goal)
+        // = : Grass
+        // # : Dirt
+        // * : JOE (The NPC)
+        // ! : The Goal
         
         const levelLayout = [
             "                                                                     ",
@@ -74,51 +72,47 @@
             "###########  ################   ############################  #######",
         ];
 
-        const messages = {
-            "1": "I love you so much! <3", 
-            "2": "You make me the happiest person.",
-            "3": "Keep going! Almost there!",
-            "final": "Happy Birthday my love! You found the surprise!"
-        };
-        const messageList = Object.values(messages);
+        const messages = [
+            "I love you so much! <3", 
+            "You make me the happiest person.",
+            "Keep going! Almost there!",
+            "You can do it, Haruna!"
+        ];
 
         // Define the Map
         addLevel(levelLayout, {
             tileWidth: 48,
             tileHeight: 48,
             tiles: {
-                // Grass Block (Green with brown bottom)
+                // Grass Block
                 "=": () => [ 
                     rect(48, 48), 
-                    color(34, 139, 34), // Forest Green
-                    outline(4, color(20, 100, 20)), // Pixel border
+                    color(34, 139, 34), 
+                    outline(4, color(20, 100, 20)), 
                     area(), 
                     body({ isStatic: true }), 
                     "ground" 
                 ],
-                // Dirt Block (Brown)
+                // Dirt Block
                 "#": () => [ 
                     rect(48, 48), 
-                    color(139, 69, 19), // Saddle Brown
+                    color(139, 69, 19), 
                     outline(4, color(100, 50, 10)), 
                     area(), 
                     body({ isStatic: true }), 
                     "ground" 
                 ],
-                // Heart
+                // JOE (The NPC)
                 "*": () => [ 
-                    sprite("heart"), 
-                    scale(2),
+                    sprite("joe"), 
+                    scale(1), // Adjust this if Joe is too big/small
                     anchor("center"), 
                     area(), 
-                    body({ isStatic: true }), // Static so gravity doesn't pull it down
-                    "message", 
-                    { msg: messageList[Math.floor(Math.random() * (messageList.length - 1))] },
-                    // Make it bob up and down slightly
-                    {
-                        update() {
-                            this.pos.y += Math.sin(time() * 4) * 0.5;
-                        }
+                    body({ isStatic: true }), // Static so he stands on ground
+                    "joe", 
+                    { 
+                        msg: messages[Math.floor(Math.random() * messages.length)],
+                        has spoken: false 
                     }
                 ],
                 // The Goal
@@ -130,35 +124,27 @@
                     area(), 
                     body({ isStatic: true }), 
                     "goal",
-                    // Spin effect
                     {
-                        update() {
-                            this.angle += 120 * dt();
-                        }
+                        update() { this.angle += 120 * dt(); }
                     }
                 ]
             }
         });
 
-        // --- PLAYER ---
+        // --- PLAYER (HARUNA) ---
         const player = add([
             sprite("player"),
-            pos(100, 200), // Start position
+            pos(100, 200),
             area(),
-            body(), // enables gravity and physics
+            body(),
             anchor("center"),
             "player"
         ]);
 
         // Camera Follow
         player.onUpdate(() => {
-            // Smoothly follow player
-            camPos(player.pos.x, 400); // Lock Y camera slightly so we don't get dizzy
-            
-            // Fail condition: Falling into a pit
-            if (player.pos.y > 1000) {
-                go("lose");
-            }
+            camPos(player.pos.x, 400);
+            if (player.pos.y > 1000) go("lose");
         });
 
         // --- CONTROLS ---
@@ -167,7 +153,7 @@
 
         onKeyDown("left", () => {
             player.move(-SPEED, 0);
-            player.flipX = true; // Face left
+            player.flipX = true;
         });
         onKeyDown("a", () => {
             player.move(-SPEED, 0);
@@ -176,14 +162,13 @@
 
         onKeyDown("right", () => {
             player.move(SPEED, 0);
-            player.flipX = false; // Face right
+            player.flipX = false;
         });
         onKeyDown("d", () => {
             player.move(SPEED, 0);
             player.flipX = false;
         });
 
-        // Jump Logic
         function jump() {
             if (player.isGrounded()) {
                 player.jump(JUMP_FORCE);
@@ -194,33 +179,50 @@
         onKeyPress("w", jump);
         onKeyPress("up", jump);
 
-        // --- UI TEXT BOX ---
-        const textBox = add([
-            rect(width() - 200, 120, { radius: 8 }),
-            anchor("center"),
-            pos(center().x, 100), // Top of screen
-            color(0, 0, 0),
-            opacity(0),
-            fixed(), 
-            z(100)
-        ]);
+        // --- INTERACTION: SPEECH BUBBLE ---
         
-        const textMessage = add([
-            text("", { size: 24, width: width() - 250, align: "center" }),
-            anchor("center"),
-            pos(center().x, 100),
-            color(255, 255, 255),
-            opacity(0),
-            fixed(),
-            z(101)
-        ]);
+        player.onCollide("joe", (joe) => {
+            // Only speak if he hasn't spoken yet (prevents bubble spam)
+            if (joe.hasSpoken) return;
+            joe.hasSpoken = true;
 
-        // Interaction
-        player.onCollide("message", (msgObj) => {
-            textBox.opacity = 0.8;
-            textMessage.opacity = 1;
-            textMessage.text = msgObj.msg;
-            destroy(msgObj); // Remove the heart after collecting
+            // 1. Create the Bubble Background
+            const bubbleWidth = 200;
+            const bubbleHeight = 80;
+
+            const bubble = add([
+                rect(bubbleWidth, bubbleHeight, { radius: 10 }),
+                color(255, 255, 255),
+                outline(2, color(0, 0, 0)),
+                anchor("center"),
+                // Position it 70 pixels above Joe
+                pos(joe.pos.x, joe.pos.y - 70), 
+                z(100),
+                // Optional: Make it disappear after 3 seconds
+                lifespan(3, { fade: 0.5 }) 
+            ]);
+
+            // 2. Add the Text inside the bubble
+            bubble.add([
+                text(joe.msg, { 
+                    size: 16, 
+                    width: bubbleWidth - 20, // Padding
+                    align: "center",
+                    color: (0,0,0)
+                }),
+                anchor("center"),
+                color(0, 0, 0), // Black Text
+            ]);
+
+            // 3. Add a little triangle pointer at bottom of bubble
+            add([
+                polygon([vec2(-10, 0), vec2(10, 0), vec2(0, 15)]),
+                pos(joe.pos.x, joe.pos.y - 32), // Right below the rect
+                color(255, 255, 255),
+                anchor("top"),
+                z(100),
+                lifespan(3, { fade: 0.5 })
+            ]);
         });
 
         // Win
@@ -229,7 +231,7 @@
         });
     });
 
-    // Lose Scene (Fell off map)
+    // Lose Scene
     scene("lose", () => {
         add([
             text("Oops! You fell.", { size: 48 }),
