@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Birthday Adventure! ❤️</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; /* Sky blue background */ }
+        /* Instruction overlay */
+        #instruction {
+            position: absolute;
+            top: 20%; width: 100%;
+            text-align: center;
+            color: white;
+            font-family: sans-serif;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px #000;
+            pointer-events: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+<div id="instruction">Click to Start!<br><small>Use Arrow Keys/WASD to move, UP or SPACE to jump</small></div>
+
+<script type="module">
+    import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
+
+    // 1. Initialize Game
+    kaboom({
+        background: [135, 206, 235], // Sky blue background (like Terraria day)
+        scale: 1.5, // Zoom in a bit more for pixel look
+    });
+
+    // --- ASSET LOADING AREA ---
+    // Right now we are using colored rectangles. 
+    // If you get actual pixel art images later, load them here like this:
+    // loadSprite("girlfriend", "path/to/girlfriend.png");
+    // loadSprite("boyfriend", "path/to/boyfriend.png");
+    // loadSprite("grass", "path/to/grassblock.png");
+
+
+    // 2. Define Game Logic
+    scene("main", () => {
+        
+        // Hide instruction
+        onClick(() => {
+            document.getElementById("instruction").style.display = "none";
+        });
+
+        // --- PHYSICS ---
+        // Essential for Terraria style feel. High gravity makes jumping feel snappy.
+        setGravity(2000);
+
+        // --- LEVEL DESIGN ---
+        // A simple left-to-right platforming level
+        // = : Ground block
+        // B : The Boyfriend (NPC standing around)
+        // ^ : Spikes/Hazard (resets level)
+        
+        const levelLayout = [
+            "                                      ",
+            "                                      ",
+            "                                      ",
+            "                                      ",
+            "           B                          ", // Boyfriend standing on a platform
+            "       =========                      ",
+            "                                      ",
+            "                       B              ", // Boyfriend standing elsewhere
+            "                   ========           ",
+            "                                      ",
+            "      B                               ",
+            "======================================", // The main floor
+            "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^", // Hazard zone below floor
+        ];
+
+        // The messages the boyfriend will say in order
+        let messageIndex = 0;
+        const boyfriendMessages = [
+            "Happy Birthday, beautiful! Keep going! -->",
+            "Looking cute today with that flower! <3",
+            "Almost there! I have a surprise at the end.",
+        ];
+
+        addLevel(levelLayout, {
+            tileWidth: 40,
+            tileHeight: 40,
+            tiles: {
+                // Ground Block (Green for now)
+                "=": () => [ 
+                    rect(40, 40), 
+                    color(34, 139, 34), // Forest Green
+                    area(), 
+                    body({ isStatic: true }), // isStatic means it won't fall
+                    "ground" 
+                ],
+                 // Hazard Block (Red spikes at bottom)
+                "^": () => [ 
+                    rect(40, 40), 
+                    color(255, 0, 0), 
+                    area(), 
+                    body({ isStatic: true }), 
+                    "hazard" 
+                ],
+                // Boyfriend NPC (Blue block for now)
+                "B": () => [
+                    rect(30, 50), // Taller like a person
+                    color(0, 0, 255), 
+                    area(),
+                    body({ isStatic: true }),
+                    anchor("bot"), // Anchor bottom so he stands on top of blocks
+                    "boyfriend",
+                    { hasSpoken: false } // Custom flag so he only speaks once per encounter
+                ]
+            }
+        });
+
+        // --- PLAYER CHARACTER ---
+        const player = add([
+            rect(30, 50), // Placeholder for the Girlfriend sprite
+            pos(100, 0), // Start position
+            color(255, 105, 180), // Hot Pink placeholder
+            area(), 
+            body(), // Normal body adapts to gravity
+            anchor("bot"), 
+            "player",
+            { speed: 300, jumpForce: 850 } // Custom stats
+        ]);
+
+        // Smooth Camera Follow
+        player.onUpdate(() => {
+            // Lerp makes the camera lag slightly behind for smoother feel
+            camPos(lerp(camPos(), player.pos, 0.1));
+            // If fallen off map
+            if (player.pos.y > height() + 200) {
+                go("main");
+            }
+        });
+
+        // --- PLATFORMER CONTROLS ---
+        onKeyDown("left", () => player.move(-player.speed, 0));
+        onKeyDown("a", () => player.move(-player.speed, 0));
+        
+        onKeyDown("right", () => player.move(player.speed, 0));
+        onKeyDown("d", () => player.move(player.speed, 0));
+
+        // Jump function
+        function jump() {
+            // Only allow jumping if currently standing on something
+            if (player.isGrounded()) {
+                player.jump(player.jumpForce);
+            }
+        }
+        onKeyPress("up", jump);
+        onKeyPress("w", jump);
+        onKeyPress("space", jump);
+
+
+        // --- UI TEXT BOX ---
+        const textBox = add([
+            rect(width() - 100, 100, { radius: 8 }),
+            anchor("bottom"),
+            pos(center().x, height() - 20),
+            color(0, 0, 0),
+            opacity(0),
+            fixed(), 
+            z(100)
+        ]);
+        
+        const textMessage = add([
+            text("", { size: 20, width: width() - 120, align: "center" }),
+            anchor("bottom"),
+            pos(center().x, height() - 45),
+            color(255, 255, 255),
+            opacity(0),
+            fixed(),
+            z(101)
+        ]);
+
+        // Function to show text temporarily
+        function showMessage(txt) {
+            textBox.opacity = 0.8;
+            textMessage.opacity = 1;
+            textMessage.text = txt;
+            // Keep message on screen for 3 seconds then fade
+            wait(3, () => {
+                 textBox.opacity = 0;
+                 textMessage.opacity = 0;
+            })
+        }
+
+        // --- INTERACTIONS ---
+
+        // Hitting spikes restarts level
+        player.onCollide("hazard", () => {
+            go("main");
+        })
+
+        // Meeting the boyfriend
+        player.onCollide("boyfriend", (bf) => {
+            if (!bf.hasSpoken) {
+                // Get the next message
+                let msg = boyfriendMessages[messageIndex];
+                
+                // If we run out of messages, just repeat the last one or say something else
+                if (!msg) msg = "Hi honey! <3";
+
+                showMessage(msg);
+                bf.hasSpoken = true;
+                
+                // Increment index for next boyfriend encounter
+                messageIndex++;
+
+                // Optional: If it's the last boyfriend, trigger win after a delay
+                if (messageIndex >= boyfriendMessages.length) {
+                     wait(4, () => go("win"));
+                }
+            }
+        });
+    });
+
+    // Celebration Scene (Same as before)
+    scene("win", () => {
+        function spawnConfetti() {
+            add([
+                rect(rand(10, 20), rand(10, 20)),
+                pos(rand(0, width()), -20), // Start above screen
+                color(rand(0, 255), rand(0, 255), rand(0, 255)),
+                area(),
+                move(DOWN, rand(100, 300)),
+                offscreen({ destroy: true }),
+            ]);
+            wait(0.05, spawnConfetti);
+        }
+        spawnConfetti();
+
+        add([
+            text("HAPPY BIRTHDAY!", { size: 48, align: "center" }),
+            pos(center()),
+            anchor("center"),
+            color(255, 0, 100)
+        ]);
+    });
+
+    go("main");
+    focus();
+
+</script>
+</body>
+</html>
