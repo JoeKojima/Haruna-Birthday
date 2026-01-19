@@ -3,30 +3,49 @@
 <head>
     <title>Birthday Adventure! ❤️</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; }
+        /* Make the "loading" background black so we know if the Blue Sky is actually the game running */
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
-<script src="https://unpkg.com/kaboom@3000.0.1/dist/kaboom.js"></script>
+<script src="https://unpkg.com/kaboom@3000.1.17/dist/kaboom.js"></script>
 
 <script>
     // 1. Initialize Game
     kaboom({
         background: [135, 206, 235], // Sky Blue
         scale: 1.5,
-        global: true, // Allows us to code without complex imports
+        global: true, // IMPORTANT: Makes all functions work globally
+        debug: true,  // Shows FPS counter in corner (so you know it's running)
     });
 
-    // 2. Define the Game Level
+    // 2. Define Assets and Scene
     scene("main", () => {
-        
-        // Physics: High gravity for snappy platforming
-        setGravity(2000);
+        setGravity(2400); // Strong gravity
+
+        // --- BACKGROUND CLOUDS (To show movement) ---
+        // We add these first so they are behind everything
+        add([
+            circle(50),
+            pos(200, 100),
+            color(255, 255, 255),
+            opacity(0.5),
+            "cloud"
+        ]);
+        add([
+            circle(30),
+            pos(500, 300),
+            color(255, 255, 255),
+            opacity(0.5),
+            "cloud"
+        ]);
 
         // --- LEVEL LAYOUT ---
-        // B = Boyfriend, ^ = Spikes, = = Ground
         const levelLayout = [
+            "                                      ",
+            "                                      ",
             "                                      ",
             "                                      ",
             "           B                          ",
@@ -39,15 +58,13 @@
             "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
         ];
 
-        // Messages
         const boyfriendMessages = [
             "Happy Birthday! Keep going! -->",
-            "You look beautiful with that flower! <3",
-            "Almost there! I have a surprise at the end.",
+            "You look beautiful today! <3",
+            "Almost there! Surprise at the end!",
         ];
         let messageIndex = 0;
 
-        // Draw the map
         addLevel(levelLayout, {
             tileWidth: 40,
             tileHeight: 40,
@@ -68,7 +85,7 @@
                 ],
                 "B": () => [
                     rect(30, 50), 
-                    color(0, 0, 255), // Blue Boyfriend placeholder
+                    color(0, 0, 255), // Blue Boyfriend 
                     area(),
                     body({ isStatic: true }),
                     anchor("bot"), 
@@ -80,9 +97,10 @@
 
         // --- PLAYER ---
         const player = add([
-            rect(30, 50),       // Invisible hitbox area
-            color(0, 0, 0, 0),  // Make the box transparent
-            pos(100, 0),        // Start in the AIR (Y=0), so she falls down!
+            // Base shape (Pink Box) - Ensures she is visible even if art fails
+            rect(30, 50), 
+            color(255, 182, 193), 
+            pos(100, 0), // Start in the sky
             area(), 
             body({ jumpForce: 900 }), 
             anchor("bot"), 
@@ -90,26 +108,25 @@
             { speed: 300 }
         ]);
 
-        // --- CUSTOM DRAWING (The Girlfriend) ---
-        // This draws her features manually to match your photo
+        // --- ART ON TOP ---
         player.onDraw(() => {
+            // Draw over the pink box with the custom character
             // Black Top
             drawRect({ width: 30, height: 22, pos: vec2(-15, -22), color: rgb(20, 20, 20) });
-            // Skin (Head)
+            // Head
             drawRect({ width: 22, height: 22, pos: vec2(-11, -44), color: rgb(255, 220, 177) });
-            // Dark Hair (Back)
+            // Hair
             drawRect({ width: 26, height: 10, pos: vec2(-13, -46), color: rgb(50, 40, 40) });
-            // Dark Hair (Long Sides)
             drawRect({ width: 8, height: 30, pos: vec2(-13, -40), color: rgb(50, 40, 40) });
             drawRect({ width: 8, height: 30, pos: vec2(5, -40), color: rgb(50, 40, 40) });
-            // The Red Flower (Hibiscus)
+            // Red Flower
             drawCircle({ radius: 8, pos: vec2(12, -40), color: rgb(255, 0, 50) });
         });
 
-        // Camera follows player
+        // --- CAMERA ---
         player.onUpdate(() => {
             camPos(player.pos);
-            // If she falls off the map, respawn
+            // Respawn if falls
             if (player.pos.y > 1000) go("main");
         });
 
@@ -122,11 +139,12 @@
         function jump() {
             if (player.isGrounded()) player.jump();
         }
+        
         onKeyPress("space", jump);
         onKeyPress("up", jump);
         onKeyPress("w", jump);
 
-        // --- TEXT BOX UI ---
+        // --- UI MESSAGES ---
         const textBox = add([
             rect(width() - 100, 100, { radius: 8 }),
             anchor("bottom"),
@@ -138,9 +156,9 @@
         ]);
         
         const textMessage = add([
-            text("", { size: 20, width: width() - 120, align: "center" }),
+            text("", { size: 24, width: width() - 120, align: "center" }),
             anchor("bottom"),
-            pos(center().x, height() - 45),
+            pos(center().x, height() - 50),
             color(255, 255, 255),
             opacity(0),
             fixed(),
@@ -173,7 +191,6 @@
         });
     });
 
-    // Celebration Screen
     scene("win", () => {
         add([
             text("HAPPY BIRTHDAY!", { size: 48, align: "center", width: width() }),
@@ -181,28 +198,16 @@
             anchor("center"),
             color(255, 0, 100)
         ]);
-        
-        function spawnConfetti() {
-            add([
-                rect(rand(10, 20), rand(10, 20)),
-                pos(rand(0, width()), -20),
-                color(rand(0, 255), rand(0, 255), rand(0, 255)),
-                area(),
-                move(DOWN, rand(100, 300)),
-                offscreen({ destroy: true }),
-            ]);
-            wait(0.1, spawnConfetti);
-        }
-        spawnConfetti();
-
         onKeyPress("space", () => go("main"));
     });
 
-    // 3. Start the game immediately!
+    // Start
     go("main");
     
-    // Attempt to focus the window so keyboard works instantly
+    // Force Focus
     window.focus();
+    onClick(() => window.focus());
+
 </script>
 </body>
 </html>
