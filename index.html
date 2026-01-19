@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<div id="instruction">Use Arrow Keys or WASD to Move & Jump</div>
+<div id="instruction">Use Arrow Keys or WASD to Move & Jump<br>Bump into Joe to talk!</div>
 
 <script type="module">
     import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
@@ -32,11 +32,9 @@
     });
 
     // 2. Load Assets
-    // IMPORTANT: Make sure haruna.png and joe.png are in the same folder as this file!
+    // Make sure these files exist in your folder!
     loadSprite("player", "haruna_standing.png"); 
     loadSprite("joe", "joe.png");
-    
-    // We will procedurally generate the ground blocks (no images needed for ground)
 
     // 3. Main Game Scene
     scene("main", () => {
@@ -105,14 +103,14 @@
                 // JOE (The NPC)
                 "*": () => [ 
                     sprite("joe"), 
-                    scale(1), // Adjust this if Joe is too big/small
+                    scale(1), // Adjust scale if image is too big
                     anchor("center"), 
                     area(), 
-                    body({ isStatic: true }), // Static so he stands on ground
+                    body({ isStatic: true }), 
                     "joe", 
                     { 
                         msg: messages[Math.floor(Math.random() * messages.length)],
-                        has spoken: false 
+                        hasSpoken: false // <--- Fixed: CamelCase used here
                     }
                 ],
                 // The Goal
@@ -182,7 +180,7 @@
         // --- INTERACTION: SPEECH BUBBLE ---
         
         player.onCollide("joe", (joe) => {
-            // Only speak if he hasn't spoken yet (prevents bubble spam)
+            // Only speak if he hasn't spoken yet
             if (joe.hasSpoken) return;
             joe.hasSpoken = true;
 
@@ -195,10 +193,8 @@
                 color(255, 255, 255),
                 outline(2, color(0, 0, 0)),
                 anchor("center"),
-                // Position it 70 pixels above Joe
                 pos(joe.pos.x, joe.pos.y - 70), 
                 z(100),
-                // Optional: Make it disappear after 3 seconds
                 lifespan(3, { fade: 0.5 }) 
             ]);
 
@@ -206,18 +202,17 @@
             bubble.add([
                 text(joe.msg, { 
                     size: 16, 
-                    width: bubbleWidth - 20, // Padding
+                    width: bubbleWidth - 20, 
                     align: "center",
-                    color: (0,0,0)
                 }),
                 anchor("center"),
-                color(0, 0, 0), // Black Text
+                color(0, 0, 0), // Text Color Black
             ]);
 
-            // 3. Add a little triangle pointer at bottom of bubble
+            // 3. Pointer Triangle
             add([
                 polygon([vec2(-10, 0), vec2(10, 0), vec2(0, 15)]),
-                pos(joe.pos.x, joe.pos.y - 32), // Right below the rect
+                pos(joe.pos.x, joe.pos.y - 32),
                 color(255, 255, 255),
                 anchor("top"),
                 z(100),
