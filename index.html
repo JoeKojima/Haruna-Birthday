@@ -3,14 +3,20 @@
 <head>
     <title>Happy Birthday Adventure! ❤️</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #222; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
         #instruction {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 24px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 16px;
             pointer-events: none;
             z-index: 1000;
             text-align: center;
@@ -23,82 +29,101 @@
 <script type="module">
     import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
 
-    // 1. Initialize Game
     kaboom({
-        background: [135, 206, 235],
-        scale: 1,
+        background: [88, 112, 152], // Gen 1 Pokemon map color
+        scale: 2,
+        crisp: true,
     });
 
-    // 2. Load Assets
+    // Load Assets
     loadSprite("player", "haruna_standing.png");
     loadSprite("joe", "joe.png");
-    
-    // 3. Main Game Scene
+
     scene("main", () => {
         
-        setGravity(2000);
-
         onClick(() => {
             const instr = document.getElementById("instruction");
             if (instr) instr.style.display = "none";
         });
 
-        // Level Layout
-        // @ : Joe character sprite
-        // ! : The Goal
+        // Gen 1 Pokemon-style Map
+        // # : Trees/Forest
+        // = : Path/Walkable ground
+        // ~ : Water
+        // ^ : Tall Grass
+        // @ : Joe NPC
+        // ! : Goal (like a Pokeball or town entrance)
         
         const levelLayout = [
-            "                                                                     ",
-            "                                                                     ",
-            "                                   @ ",
-            "                                 ===                                 ",
-            "                                                                     ",
-            "                  @ ===                 ===                    ",
-            "                ====                                  !              ",
-            "                                                    =====            ",
-            "       @ ==                                   #######           ",
-            "     ====                 ===         ===         #########          ",
-            "                                                 ###########         ",
-            "===========  ================   ============================  =======",
-            "###########  ################   ############################  #######",
-            "###########  ################   ############################  #######",
+            "######################",
+            "######################",
+            "###=======#####===#####",
+            "###==@====#####===####",
+            "###=======#####===####",
+            "####==######===^^^####",
+            "####==######===^^^####",
+            "##====###===^^^===####",
+            "##====###^^^~~~^^^####",
+            "##==========~~~===####",
+            "##===@======~~~===####",
+            "##==========~~~^^^####",
+            "####==######^^^===####",
+            "####==############====",
+            "####==###====@====####",
+            "####==###=========####",
+            "####==###======!==####",
+            "######################",
+            "######################",
         ];
 
         const messages = [
-            "I love you so much! <3", 
-            "You make me the happiest person.",
-            "Keep going! Almost there!"
+            "Hey! I've been waiting for you!",
+            "You're doing great! Keep exploring!",
+            "Almost there... the surprise is close!"
         ];
 
         let messageIndex = 0;
 
-        // Define the Map
         addLevel(levelLayout, {
-            tileWidth: 48,
-            tileHeight: 48,
+            tileWidth: 32,
+            tileHeight: 32,
             tiles: {
-                "=": () => [ 
-                    rect(48, 48), 
-                    color(34, 139, 34),
-                    outline(4, color(20, 100, 20)),
-                    area(), 
-                    body({ isStatic: true }), 
-                    "ground" 
-                ],
+                // Trees/Forest (dark green blocks)
                 "#": () => [ 
-                    rect(48, 48), 
-                    color(139, 69, 19),
-                    outline(4, color(100, 50, 10)), 
+                    rect(32, 32), 
+                    color(48, 98, 48), // Dark forest green
+                    outline(2, color(32, 64, 32)),
                     area(), 
                     body({ isStatic: true }), 
-                    "ground" 
+                    "wall"
                 ],
-                // Joe character
+                // Path (light tan/beige like Gen 1)
+                "=": () => [ 
+                    rect(32, 32), 
+                    color(200, 184, 136),
+                    outline(1, color(176, 160, 112)),
+                ],
+                // Water
+                "~": () => [ 
+                    rect(32, 32), 
+                    color(80, 120, 184),
+                    outline(1, color(64, 96, 152)),
+                    area(), 
+                    body({ isStatic: true }), 
+                    "wall"
+                ],
+                // Tall Grass
+                "^": () => [ 
+                    rect(32, 32), 
+                    color(120, 152, 88),
+                    outline(1, color(96, 128, 72)),
+                ],
+                // Joe NPC
                 "@": () => [ 
                     sprite("joe"), 
-                    scale(0.5),
-                    anchor("bot"), 
-                    area({ scale: 0.4 }), 
+                    scale(0.15),
+                    anchor("center"), 
+                    area({ scale: 0.6 }), 
                     body({ isStatic: true }),
                     "joe", 
                     { 
@@ -106,107 +131,125 @@
                         hasSpoken: false 
                     }
                 ],
+                // Goal 
                 "!": () => [ 
-                    rect(50, 50), 
-                    color(255, 215, 0), 
-                    outline(4, color(255, 255, 255)),
+                    rect(28, 28), 
+                    color(255, 64, 64), 
+                    outline(3, color(255, 255, 255)),
                     anchor("center"), 
                     area(), 
                     body({ isStatic: true }), 
                     "goal",
                     {
                         update() {
-                            this.angle += 120 * dt();
+                            this.opacity = 0.5 + Math.sin(time() * 4) * 0.5;
                         }
                     }
                 ]
             }
         });
 
-        // --- PLAYER ---
+        // Player (top-down view)
         const player = add([
             sprite("player"),
-            pos(100, 200),
-            area({ scale: 0.4 }),
-            body(),
-            anchor("bot"),
-            scale(0.5),
-            "player"
+            pos(160, 160),
+            area({ scale: 0.6 }),
+            body({ isStatic: true }), // No gravity in top-down
+            anchor("center"),
+            scale(0.15),
+            "player",
+            {
+                speed: 120,
+            }
         ]);
 
-        // Camera Follow
+        // Camera follow
         player.onUpdate(() => {
-            camPos(player.pos.x, 400);
-            
-            if (player.pos.y > 1000) {
-                go("lose");
-            }
+            camPos(player.pos);
         });
 
-        // --- CONTROLS ---
-        const SPEED = 400;
-        const JUMP_FORCE = 900;
+        // Top-down movement (4-directional like Gen 1 Pokemon)
+        let isMoving = false;
 
         onKeyDown("left", () => {
-            player.move(-SPEED, 0);
-            player.flipX = true;
+            if (!isMoving) {
+                player.move(-player.speed, 0);
+            }
         });
         onKeyDown("a", () => {
-            player.move(-SPEED, 0);
-            player.flipX = true;
+            if (!isMoving) {
+                player.move(-player.speed, 0);
+            }
         });
 
         onKeyDown("right", () => {
-            player.move(SPEED, 0);
-            player.flipX = false;
+            if (!isMoving) {
+                player.move(player.speed, 0);
+            }
         });
         onKeyDown("d", () => {
-            player.move(SPEED, 0);
-            player.flipX = false;
+            if (!isMoving) {
+                player.move(player.speed, 0);
+            }
         });
 
-        function jump() {
-            if (player.isGrounded()) {
-                player.jump(JUMP_FORCE);
+        onKeyDown("up", () => {
+            if (!isMoving) {
+                player.move(0, -player.speed);
             }
-        }
+        });
+        onKeyDown("w", () => {
+            if (!isMoving) {
+                player.move(0, -player.speed);
+            }
+        });
 
-        onKeyPress("space", jump);
-        onKeyPress("w", jump);
-        onKeyPress("up", jump);
+        onKeyDown("down", () => {
+            if (!isMoving) {
+                player.move(0, player.speed);
+            }
+        });
+        onKeyDown("s", () => {
+            if (!isMoving) {
+                player.move(0, player.speed);
+            }
+        });
 
-        // --- SPEECH BUBBLE ---
+        // Prevent walking through walls
+        player.onCollide("wall", () => {
+            player.pos = player.pos; // Simple collision stop
+        });
+
+        // Speech bubble system
         let currentBubble = null;
         let currentBubbleText = null;
 
         function createSpeechBubble(joeObj, message) {
-            // Remove existing bubble if any
             if (currentBubble) {
                 destroy(currentBubble);
                 destroy(currentBubbleText);
             }
 
-            // Create bubble background
             currentBubble = add([
-                rect(300, 100, { radius: 8 }),
+                rect(200, 60, { radius: 4 }),
                 anchor("bot"),
-                pos(joeObj.pos.x, joeObj.pos.y - 80),
+                pos(joeObj.pos.x, joeObj.pos.y - 25),
                 color(255, 255, 255),
-                outline(3, color(0, 0, 0)),
-                z(50)
+                outline(2, color(0, 0, 0)),
+                z(100),
+                fixed()
             ]);
 
-            // Create bubble text
             currentBubbleText = add([
-                text(message, { size: 18, width: 280, align: "center" }),
+                text(message, { size: 10, width: 190, align: "center" }),
                 anchor("center"),
-                pos(joeObj.pos.x, joeObj.pos.y - 130),
+                pos(joeObj.pos.x, joeObj.pos.y - 55),
                 color(0, 0, 0),
-                z(51)
+                z(101),
+                fixed()
             ]);
 
-            // Auto-hide after 4 seconds
-            wait(4, () => {
+            wait(3, () => {
                 if (currentBubble) {
                     destroy(currentBubble);
                     destroy(currentBubbleText);
@@ -230,30 +273,16 @@
         });
     });
 
-    // Lose Scene
-    scene("lose", () => {
-        add([
-            text("Oops! You fell.", { size: 48 }),
-            pos(center()),
-            anchor("center"),
-        ]);
-        add([
-            text("Press Space to Try Again", { size: 24 }),
-            pos(center().x, center().y + 100),
-            anchor("center"),
-        ]);
-        onKeyPress("space", () => go("main"));
-    });
-
     // Celebration Scene
     scene("win", () => {
+        // Pixelated confetti
         function spawnConfetti() {
             add([
-                rect(rand(10, 20), rand(10, 20)),
+                rect(rand(4, 8), rand(4, 8)),
                 pos(rand(0, width()), rand(0, height())),
                 color(rand(0, 255), rand(0, 255), rand(0, 255)),
                 area(),
-                move(DOWN, rand(50, 200)),
+                move(DOWN, rand(50, 150)),
                 offscreen({ destroy: true }),
             ]);
             wait(0.05, spawnConfetti);
@@ -261,23 +290,29 @@
         spawnConfetti();
 
         add([
-            text("HAPPY BIRTHDAY!", { size: 48, align: "center", width: width() - 50 }),
+            text("HAPPY BIRTHDAY!", { size: 24, align: "center" }),
             pos(center()),
             anchor("center"),
-            color(255, 0, 100)
+            color(255, 224, 32)
         ]);
         
         add([
-            text("Press Space to Replay", { size: 24 }),
-            pos(center().x, center().y + 100),
+            text("You found the surprise!", { size: 12 }),
+            pos(center().x, center().y + 40),
             anchor("center"),
-            color(0, 0, 0)
+            color(255, 255, 255)
+        ]);
+
+        add([
+            text("Press SPACE to play again", { size: 10 }),
+            pos(center().x, center().y + 80),
+            anchor("center"),
+            color(200, 200, 200)
         ]);
 
         onKeyPress("space", () => go("main"));
     });
 
-    // Start
     go("main");
     focus();
 
