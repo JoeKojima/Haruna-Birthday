@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Happy Birthday Adventure! ❤️</title>
+    <title>Happy Birthday Pokemon Adventure! <3</title>
     <style>
         body { 
             margin: 0; 
@@ -15,7 +15,8 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-family: 'Press Start 2P', monospace;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
             font-size: 16px;
             pointer-events: none;
             z-index: 1000;
@@ -30,14 +31,26 @@
     import kaboom from "https://unpkg.com/kaboom@3000.0.1/dist/kaboom.mjs";
 
     kaboom({
-        background: [88, 112, 152], // Gen 1 Pokemon map color
-        scale: 2,
+        background: [88, 112, 152],
+        scale: 1,
         crisp: true,
     });
 
     // Load Assets
-    loadSprite("player", "haruna_standing.png");
+    loadSprite("player_stand", "haruna_standing.png");
+    loadSprite("player_run", "haruna_running.png");
     loadSprite("joe", "joe.png");
+    loadSprite("joe_run", "joe_running.png"); // Added Joe Running Sprite
+    loadSprite("pokeball", "pokeball.png");
+    loadSprite("charmander", "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png");
+
+    // Global game state
+    let gameState = {
+        joeFollowing: false,
+        joeObject: null,
+        charmanderEncountered: false,
+        gotCake: false
+    };
 
     scene("main", () => {
         
@@ -46,271 +59,778 @@
             if (instr) instr.style.display = "none";
         });
 
-        // Gen 1 Pokemon-style Map
-        // # : Trees/Forest
-        // = : Path/Walkable ground
-        // ~ : Water
-        // ^ : Tall Grass
-        // @ : Joe NPC
-        // ! : Goal (like a Pokeball or town entrance)
-        
+        // REVISED MAP LAYOUT
         const levelLayout = [
-            "######################",
-            "######################",
-            "###=======#####===#####",
-            "###==@====#####===####",
-            "###=======#####===####",
-            "####==######===^^^####",
-            "####==######===^^^####",
-            "##====###===^^^===####",
-            "##====###^^^~~~^^^####",
-            "##==========~~~===####",
-            "##===@======~~~===####",
-            "##==========~~~^^^####",
-            "####==######^^^===####",
-            "####==############====",
-            "####==###====@====####",
-            "####==###=========####",
-            "####==###======!==####",
-            "######################",
-            "######################",
+            "########################################",
+            "########################################",
+            "########################################",
+            "########################################",
+            "########################################",
+            "##########################################",
+            "###########################################",
+            "####===========***^^^^^^^^^^^^^^^^^#########",
+            "####===========****==^^^^^^^^^^^^^^#########",
+            "####=====**====****======^^^^^^^^^^#########",
+            "####======P================^^^^^^^^#########",
+            "####=======**==============^^^^^^^^#########",
+            "####==================@========^^^^#########",
+            "####================****========^^^^^^^#####",
+            "####^^^============================^^^^#####",
+            "####^^^^^^^=====~~~~===========**======#####",
+            "####^^^^^^^^^^^^^^~~~~==========**=====#####",
+            "####^^^^^^^^^^^^^^~~~~~~===============#####",
+            "####^^^^^^^^^^^^^^~~~~~~~~=============#####",
+            "####^^^^^^^^^^^^~~~~~~~~~~==****=======#####",
+            "####^^^^^^^^^^^^~~~~~~~~~~==****=======#####",
+            "####^^^^^^^^^^~~~~~~~~~~~~~=****=======#####",
+            "####^^^^^^^^^^~~~~~~~~~~~~~~=======**==#####",
+            "####^^^^^^^^^^^^~~~~~~~~~~~~~=====**===#####",
+            "####^^^^^^^^^^^^^~~~~~~~~~~~~~=========#####",
+            "####===============~~~~~~~~~~~~========#####",
+            "####=================~~~~~~~===========#####",
+            "####===================================#####",
+            "####===================================#####",
+            "####===================================#####",
+            "####======C=====================?======#####",
+            "####===================================#####",
+            "####===================================#####",
+            "####===================================#####",
+            "####===================================#####",
+            "############################################",
+            "############################################",
         ];
 
         const messages = [
-            "Hey! I've been waiting for you!",
-            "You're doing great! Keep exploring!",
-            "Almost there... the surprise is close!"
+            "Hey Haruna! I've been waiting for you!",
+            "Let me join you on this adventure!",
+            "I heard there's a rare Pokemon nearby...",
+            "Let's go find it together!",
         ];
-
-        let messageIndex = 0;
 
         addLevel(levelLayout, {
             tileWidth: 32,
             tileHeight: 32,
             tiles: {
-                // Trees/Forest (dark green blocks)
                 "#": () => [ 
                     rect(32, 32), 
-                    color(48, 98, 48), // Dark forest green
-                    outline(2, color(32, 64, 32)),
+                    color(48, 98, 48),
                     area(), 
                     body({ isStatic: true }), 
-                    "wall"
+                    "wall",
+                    {
+                        draw() {
+                            drawRect({ width: 32, height: 32, color: rgb(48, 98, 48) });
+                            for (let i = 0; i < 4; i++) {
+                                drawRect({
+                                    width: 6, height: 6,
+                                    pos: vec2((i % 2) * 14 + 6, Math.floor(i / 2) * 14 + 6),
+                                    color: rgb(32, 64, 32)
+                                });
+                            }
+                            drawRect({ width: 4, height: 4, pos: vec2(4, 4), color: rgb(64, 120, 64) });
+                        }
+                    }
                 ],
-                // Path (light tan/beige like Gen 1)
                 "=": () => [ 
                     rect(32, 32), 
                     color(200, 184, 136),
-                    outline(1, color(176, 160, 112)),
+                    {
+                        draw() {
+                            drawRect({ width: 32, height: 32, color: rgb(200, 184, 136) });
+                            drawRect({ width: 8, height: 8, pos: vec2(2, 6), color: rgb(176, 160, 112) });
+                            drawRect({ width: 6, height: 6, pos: vec2(22, 4), color: rgb(176, 160, 112) });
+                            drawRect({ width: 8, height: 8, pos: vec2(12, 20), color: rgb(176, 160, 112) });
+                            drawRect({ width: 4, height: 4, pos: vec2(4, 24), color: rgb(184, 168, 120) });
+                        }
+                    }
                 ],
-                // Water
                 "~": () => [ 
                     rect(32, 32), 
                     color(80, 120, 184),
-                    outline(1, color(64, 96, 152)),
                     area(), 
                     body({ isStatic: true }), 
-                    "wall"
+                    "wall",
+                    {
+                        draw() {
+                            drawRect({ width: 32, height: 32, color: rgb(80, 120, 184) });
+                            const offset = Math.sin(time() * 2) * 2;
+                            drawRect({ width: 32, height: 4, pos: vec2(0, 8 + offset), color: rgb(64, 96, 152) });
+                            drawRect({ width: 32, height: 4, pos: vec2(0, 20 + offset), color: rgb(64, 96, 152) });
+                            drawRect({ width: 8, height: 2, pos: vec2(6, 4), color: rgb(120, 160, 224) });
+                            drawRect({ width: 6, height: 2, pos: vec2(20, 14), color: rgb(120, 160, 224) });
+                        }
+                    }
                 ],
-                // Tall Grass
                 "^": () => [ 
                     rect(32, 32), 
                     color(120, 152, 88),
-                    outline(1, color(96, 128, 72)),
-                ],
-                // Joe NPC
-                "@": () => [ 
-                    sprite("joe"), 
-                    scale(0.15),
-                    anchor("center"), 
-                    area({ scale: 0.6 }), 
+                    area(),
                     body({ isStatic: true }),
-                    "joe", 
-                    { 
-                        msg: messages[messageIndex++ % messages.length],
-                        hasSpoken: false 
+                    "wall",
+                    {
+                        draw() {
+                            drawRect({ width: 32, height: 32, color: rgb(120, 152, 88) });
+                            for (let i = 0; i < 8; i++) {
+                                const x = (i % 4) * 8 + 2;
+                                const y = Math.floor(i / 4) * 16 + 4;
+                                drawRect({ width: 3, height: 8, pos: vec2(x, y), color: rgb(96, 128, 72) });
+                                drawRect({ width: 2, height: 6, pos: vec2(x + 1, y), color: rgb(144, 176, 104) });
+                            }
+                        }
                     }
                 ],
-                // Goal 
-                "!": () => [ 
-                    rect(28, 28), 
-                    color(255, 64, 64), 
-                    outline(3, color(255, 255, 255)),
-                    anchor("center"), 
-                    area(), 
-                    body({ isStatic: true }), 
-                    "goal",
+                "*": () => [ 
+                    rect(32, 32), 
+                    color(200, 184, 136),
                     {
-                        update() {
-                            this.opacity = 0.5 + Math.sin(time() * 4) * 0.5;
+                        draw() {
+                            drawRect({ width: 32, height: 32, color: rgb(200, 184, 136) });
+                            drawRect({ width: 8, height: 8, pos: vec2(4, 8), color: rgb(176, 160, 112) });
+                            const flowers = [{x: 8, y: 10}, {x: 20, y: 8}, {x: 14, y: 20}, {x: 24, y: 18}];
+                            flowers.forEach(f => {
+                                drawRect({ width: 2, height: 6, pos: vec2(f.x, f.y), color: rgb(96, 128, 72) });
+                                drawRect({ width: 4, height: 4, pos: vec2(f.x - 1, f.y - 3), color: rgb(255, 120, 140) });
+                            });
                         }
+                    }
+                ],
+                "@": () => [ 
+                    sprite("joe", { flipX: true }),
+                    scale(0.1),
+                    anchor("bot"),
+                    area({ scale: 0.6 }), 
+                    body({ isStatic: true }),
+                    z(50), 
+                    "joe", 
+                    { 
+                        messages: messages, 
+                        currentMessageIndex: 0, 
+                        totalMessagesShown: 0,
+                        // Animation state for Joe
+                        animTimer: 0,
+                        isRunFrame: false,
+                        lastFlip: true 
+                    }
+                ],
+                // --- BIGGER CAKE TILE ---
+                "?": () => [
+                    rect(32, 32),
+                    color(200, 184, 136),
+                    area(),
+                    "cake",
+                    {
+                        draw() {
+                            // Ground
+                            drawRect({ width: 32, height: 32, color: rgb(200, 184, 136) });
+                            
+                            // Bigger Cake Body (Radius increased from 10 to 14)
+                            drawCircle({ pos: vec2(16, 20), radius: 14, color: rgb(80, 40, 10) });
+                            // Bigger Icing (Radius increased from 8 to 11)
+                            drawCircle({ pos: vec2(16, 16), radius: 11, color: rgb(120, 60, 20) }); 
+                            // Bigger Cherry (Radius increased from 3 to 4)
+                            drawCircle({ pos: vec2(16, 11), radius: 4, color: rgb(255, 50, 50) });
+                        }
+                    }
+                ],
+                "P": () => [
+                    rect(32, 32),
+                    color(200, 184, 136),
+                    {
+                        draw() {
+                             drawRect({ width: 32, height: 32, color: rgb(200, 184, 136) });
+                        }
+                    }
+                ],
+                "C": () => [ 
+                    sprite("charmander"),
+                    scale(2),
+                    anchor("center"),
+                    area({ scale: 0.5 }),
+                    body({ isStatic: true }),
+                    z(50),
+                    "charmander",
+                    {
+                        update() { this.pos.y += Math.sin(time() * 3) * 0.3; }
                     }
                 ]
             }
         });
 
-        // Player (top-down view)
+        // Player setup
         const player = add([
-            sprite("player"),
-            pos(160, 160),
-            area({ scale: 0.6 }),
-            body({ isStatic: true }), // No gravity in top-down
+            sprite("player_stand", { flipX: false }),
+            pos(200, 180),
+            area({
+                shape: new Rect(vec2(0), 120, 400), 
+                scale: 1.5,
+                offset: vec2(0, 180)}),
+            body(),
             anchor("center"),
-            scale(0.15),
+            scale(0.1),
+            z(50),
             "player",
-            {
-                speed: 120,
-            }
+            { speed: 120, isMoving: false, lastDirection: "right", lastPos: vec2(200, 100) }
         ]);
 
-        // Camera follow
-        player.onUpdate(() => {
-            camPos(player.pos);
-        });
+        player.gravityScale = 0;
+        player.onUpdate(() => camPos(player.pos));
 
-        // Top-down movement (4-directional like Gen 1 Pokemon)
+        // Animation logic
         let isMoving = false;
-
-        onKeyDown("left", () => {
-            if (!isMoving) {
-                player.move(-player.speed, 0);
+        let animFrame = 0;
+        
+        function startMoving() {
+            if (!player.isMoving) {
+                player.isMoving = true;
+                const animLoop = loop(0.2, () => {
+                    if (!player.isMoving) return;
+                    animFrame = (animFrame + 1) % 2;
+                    const flipState = player.lastDirection === "left";
+                    player.use(sprite(animFrame === 0 ? "player_stand" : "player_run", { flipX: flipState }));
+                });
+                player.animLoop = animLoop;
             }
-        });
-        onKeyDown("a", () => {
-            if (!isMoving) {
-                player.move(-player.speed, 0);
+        }
+
+        function stopMoving() {
+            if (player.isMoving) {
+                player.isMoving = false;
+                const flipState = player.lastDirection === "left";
+                player.use(sprite("player_stand", { flipX: flipState }));
+                if (player.animLoop) player.animLoop.cancel();
             }
-        });
+        }
 
-        onKeyDown("right", () => {
-            if (!isMoving) {
-                player.move(player.speed, 0);
-            }
-        });
-        onKeyDown("d", () => {
-            if (!isMoving) {
-                player.move(player.speed, 0);
-            }
-        });
+        // Input handling
+        let keysPressed = new Set();
+        const dirs = {
+            "left": [-1, 0], "a": [-1, 0],
+            "right": [1, 0], "d": [1, 0],
+            "up": [0, -1], "w": [0, -1],
+            "down": [0, 1], "s": [0, 1]
+        };
 
-        onKeyDown("up", () => {
-            if (!isMoving) {
-                player.move(0, -player.speed);
-            }
-        });
-        onKeyDown("w", () => {
-            if (!isMoving) {
-                player.move(0, -player.speed);
-            }
-        });
-
-        onKeyDown("down", () => {
-            if (!isMoving) {
-                player.move(0, player.speed);
-            }
-        });
-        onKeyDown("s", () => {
-            if (!isMoving) {
-                player.move(0, player.speed);
-            }
-        });
-
-        // Prevent walking through walls
-        player.onCollide("wall", () => {
-            player.pos = player.pos; // Simple collision stop
-        });
-
-        // Speech bubble system
-        let currentBubble = null;
-        let currentBubbleText = null;
-
-        function createSpeechBubble(joeObj, message) {
-            if (currentBubble) {
-                destroy(currentBubble);
-                destroy(currentBubbleText);
-            }
-
-            currentBubble = add([
-                rect(200, 60, { radius: 4 }),
-                anchor("bot"),
-                pos(joeObj.pos.x, joeObj.pos.y - 25),
-                color(255, 255, 255),
-                outline(2, color(0, 0, 0)),
-                z(100),
-                fixed()
-            ]);
-
-            currentBubbleText = add([
-                text(message, { size: 10, width: 190, align: "center" }),
-                anchor("center"),
-                pos(joeObj.pos.x, joeObj.pos.y - 55),
-                color(0, 0, 0),
-                z(101),
-                fixed()
-            ]);
-
-            wait(3, () => {
-                if (currentBubble) {
-                    destroy(currentBubble);
-                    destroy(currentBubbleText);
-                    currentBubble = null;
-                    currentBubbleText = null;
+        for (const k in dirs) {
+            onKeyPress(k, () => { keysPressed.add(k); startMoving(); });
+            onKeyRelease(k, () => { keysPressed.delete(k); if (keysPressed.size === 0) stopMoving(); });
+            onKeyDown(k, () => {
+                if (!isMoving) {
+                    player.move(dirs[k][0] * player.speed, dirs[k][1] * player.speed);
+                    if (dirs[k][0] !== 0) player.lastDirection = dirs[k][0] === -1 ? "left" : "right";
                 }
             });
         }
 
-        // Interaction with Joe
-        player.onCollide("joe", (joeObj) => {
-            if (!joeObj.hasSpoken) {
-                createSpeechBubble(joeObj, joeObj.msg);
-                joeObj.hasSpoken = true;
+        // Interaction logic
+        let nearbyJoe = null;
+        let interactionPrompt = null;
+        let currentBubble = null;
+        let currentBubbleText = null;
+        let dialogueActive = false;
+        let currentSpeaker = null;
+
+        player.onCollide("joe", (joeObj) => { if (!gameState.joeFollowing) nearbyJoe = joeObj; });
+        player.onCollideEnd("joe", (joeObj) => { 
+            if (nearbyJoe === joeObj && !dialogueActive) {
+                nearbyJoe = null;
+                if (interactionPrompt) { destroy(interactionPrompt); interactionPrompt = null; }
             }
         });
 
-        // Win
-        player.onCollide("goal", () => {
-            go("win");
+        // CAKE INTERACTION
+        player.onCollide("cake", (cakeObj) => {
+             if (!gameState.gotCake) {
+                 gameState.gotCake = true;
+                 destroy(cakeObj);
+                 const txt = add([
+                     text("Found Chocolate Cake!", { size: 14 }),
+                     pos(player.pos.x, player.pos.y - 60),
+                     anchor("center"),
+                     color(255, 200, 100),
+                     move(UP, 20),
+                     opacity(1),
+                     z(200)
+                 ]);
+                 tween(1, 0, 2, (val) => txt.opacity = val, easings.linear).then(() => destroy(txt));
+                 
+                 if (gameState.joeFollowing && gameState.joeObject) {
+                     createSpeechBubble(gameState.joeObject, "Ooh! A cake! Let's stash this for later!");
+                     wait(2, () => closeSpeechBubble());
+                 }
+             }
+        });
+
+        player.onUpdate(() => {
+            if (nearbyJoe && !dialogueActive && !gameState.joeFollowing) {
+                if (!interactionPrompt) {
+                    interactionPrompt = add([
+                        text("Press E to talk", { size: 10 }),
+                        anchor("center"),
+                        pos(player.pos.x, player.pos.y - 40),
+                        color(255, 255, 255),
+                        outline(2, color(0, 0, 0)),
+                        z(100)
+                    ]);
+                } else {
+                    interactionPrompt.pos = vec2(player.pos.x, player.pos.y - 40);
+                }
+            } else if (interactionPrompt) {
+                destroy(interactionPrompt);
+                interactionPrompt = null;
+            }
+            
+            if (currentBubble && currentSpeaker) {
+                currentBubble.pos = vec2(currentSpeaker.pos.x, currentSpeaker.pos.y - 120);
+                currentBubbleText.pos = vec2(currentSpeaker.pos.x, currentSpeaker.pos.y - 150);
+                if (currentBubble.continuePrompt) currentBubble.continuePrompt.pos = vec2(currentSpeaker.pos.x, currentSpeaker.pos.y - 130);
+            }
+        });
+
+        function createSpeechBubble(character, message) {
+            closeSpeechBubble();
+            dialogueActive = true;
+            currentSpeaker = character;
+            currentBubble = add([
+                rect(200, 60, { radius: 4 }),
+                anchor("bot"),
+                pos(character.pos.x, character.pos.y - 60),
+                color(255, 255, 255),
+                outline(2, color(0, 0, 0)),
+                z(100)
+            ]);
+            currentBubbleText = add([
+                text(message, { size: 10, width: 190, align: "center" }),
+                anchor("center"),
+                pos(character.pos.x, character.pos.y - 90),
+                color(0, 0, 0),
+                z(101)
+            ]);
+            currentBubble.continuePrompt = add([
+                text("▼", { size: 12 }),
+                anchor("center"),
+                pos(character.pos.x, character.pos.y - 70),
+                color(0, 0, 0),
+                z(102),
+                opacity(1),
+                { update() { this.opacity = 0.5 + Math.sin(time() * 5) * 0.5; } }
+            ]);
+        }
+
+        function closeSpeechBubble() {
+            if (currentBubble) {
+                if (currentBubble.continuePrompt) destroy(currentBubble.continuePrompt);
+                destroy(currentBubble);
+                destroy(currentBubbleText);
+                currentBubble = null;
+                currentBubbleText = null;
+            }
+            dialogueActive = false;
+            currentSpeaker = null;
+        }
+
+        onKeyPress("e", () => {
+            if (dialogueActive && currentSpeaker) {
+                const joe = currentSpeaker;
+                if (!joe.messages) {
+                    closeSpeechBubble();
+                    return;
+                }
+                if (joe.totalMessagesShown >= 4) {
+                    closeSpeechBubble();
+                    gameState.joeFollowing = true;
+                    gameState.joeObject = joe;
+                    joe.unuse("body");
+                    nearbyJoe = null;
+                } else {
+                    const message = joe.messages[joe.currentMessageIndex];
+                    createSpeechBubble(joe, message);
+                    joe.totalMessagesShown++;
+                    joe.currentMessageIndex = (joe.currentMessageIndex + 1) % joe.messages.length;
+                }
+            } else if (nearbyJoe && !dialogueActive && !gameState.joeFollowing) {
+                const message = nearbyJoe.messages[nearbyJoe.currentMessageIndex];
+                createSpeechBubble(nearbyJoe, message);
+                nearbyJoe.totalMessagesShown++;
+                nearbyJoe.currentMessageIndex = (nearbyJoe.currentMessageIndex + 1) % nearbyJoe.messages.length;
+            }
+        });
+
+        // --- UPDATED JOE FOLLOWING & ANIMATION LOGIC ---
+        let joeFollowDelay = [];
+        const FOLLOW_TRAIL_LENGTH = 10;
+        player.onUpdate(() => {
+            if (gameState.joeFollowing && gameState.joeObject) {
+                const joe = gameState.joeObject;
+
+                joeFollowDelay.unshift(player.pos.clone());
+                if (joeFollowDelay.length > FOLLOW_TRAIL_LENGTH) joeFollowDelay.pop();
+                
+                if (joeFollowDelay.length >= FOLLOW_TRAIL_LENGTH) {
+                    const targetPos = joeFollowDelay[FOLLOW_TRAIL_LENGTH - 1].clone();
+                    const prevPos = joe.pos.clone();
+                    
+                    // Move
+                    joe.pos = targetPos;
+
+                    // Calculate movement
+                    const distMoved = prevPos.dist(targetPos);
+                    const isMoving = distMoved > 0.1; // Threshold to prevent jitter
+
+                    if (isMoving) {
+                        // Direction Check
+                        if (targetPos.x > prevPos.x) joe.lastFlip = false; // Right
+                        if (targetPos.x < prevPos.x) joe.lastFlip = true;  // Left
+
+                        // Animate
+                        joe.animTimer += dt();
+                        if (joe.animTimer >= 0.2) {
+                            joe.animTimer = 0;
+                            joe.isRunFrame = !joe.isRunFrame;
+                        }
+                        if (joe.isRunFrame) {
+                            joe.use(sprite("joe_run", { flipX: joe.lastFlip }));
+                            joe.use(scale(0.2)); // <--- Make running LARGER (e.g. 0.2)
+                        } else {
+                            joe.use(sprite("joe", { flipX: joe.lastFlip }));
+                            joe.use(scale(0.1)); // <--- Keep standing NORMAL (e.g. 0.1)
+                        }
+                    } else {
+                        // Idle
+                        joe.use(sprite("joe", { flipX: joe.lastFlip }));
+                        joe.use(scale(0.1)); // <--- Keep standing NORMAL (e.g. 0.1)
+                    }
+                }
+            }
+        });
+
+        player.onCollide("charmander", (charmander) => {
+            if (!gameState.charmanderEncountered && gameState.joeFollowing) {
+                if (gameState.gotCake) {
+                    gameState.charmanderEncountered = true;
+                    go("battle", { charmander: charmander });
+                } else {
+                    createSpeechBubble(gameState.joeObject, "Wait Haruna! We should explore more first!");
+                    wait(2, closeSpeechBubble);
+                }
+            }
         });
     });
 
-    // Celebration Scene
-    scene("win", () => {
-        // Pixelated confetti
+    scene("battle", (data) => {
+        let battleOver = false;
+
+        add([rect(width(), height()), pos(0, 0), color(0, 0, 0), z(-1)]);
+        
+        let flashOpacity = 1;
+        const flash = add([
+            rect(width(), height()), pos(0, 0), color(255, 255, 255), opacity(1), z(1000)
+        ]);
+        tween(1, 0, 0.5, (val) => flash.opacity = val, easings.linear).then(() => destroy(flash));
+
+        const battleCharmander = add([
+            sprite("charmander"),
+            pos(width() * 0.7, height() * 0.45),
+            scale(4),
+            anchor("center"),
+            z(10),
+            { hp: 3, maxHp: 3 }
+        ]);
+
+        battleCharmander.onUpdate(() => {
+            if (!battleOver && battleCharmander.scale.x >= 4) {
+                battleCharmander.pos.y = height() * 0.45 + Math.sin(time() * 3) * 5;
+            }
+        });
+
+        const battleJoe = add([sprite("joe"), pos(width() * 0.15, height() * 0.6), scale(0.2), anchor("center"), z(10)]);
+        const battleHaruna = add([sprite("player_stand"), pos(width() * 0.25, height() * 0.65), scale(0.2), anchor("center"), z(10)]);
+
+        add([rect(width() * 0.9, 100, { radius: 8 }), pos(width() * 0.05, height() - 120), color(255, 255, 255), outline(4, color(0, 0, 0)), z(50)]);
+        let battleText = add([text("A wild CHARMANDER appeared!", { size: 16 }), pos(width() * 0.1, height() - 100), color(0, 0, 0), z(51)]);
+
+        const hpBarBg = add([rect(120, 20, { radius: 4 }), pos(width() * 0.7 - 60, height() * 0.25), color(200, 200, 200), outline(2, color(0, 0, 0)), z(20)]);
+        
+        let hpBarFill = add([
+            rect(116, 16, { radius: 2 }),
+            pos(width() * 0.7 - 58, height() * 0.25 + 2),
+            color(100, 200, 100),
+            z(21),
+            {
+                update() {
+                    if (battleOver) return;
+                    const hpPercent = Math.max(0, battleCharmander.hp / battleCharmander.maxHp);
+                    this.width = Math.max(4, 116 * hpPercent);
+                    this.color = hpPercent > 0.5 ? rgb(100, 200, 100) : (hpPercent > 0.25 ? rgb(255, 200, 0) : rgb(255, 100, 100));
+                }
+            }
+        ]);
+
+        const hpText = add([
+            text(`HP: ${battleCharmander.hp}/${battleCharmander.maxHp}`, { size: 10 }),
+            pos(width() * 0.7 - 60, height() * 0.25 - 20),
+            color(255, 255, 255),
+            outline(2, color(0, 0, 0)),
+            z(22),
+            { update() { if (!battleOver) this.text = `HP: ${battleCharmander.hp}/${battleCharmander.maxHp}`; } }
+        ]);
+
+        wait(2, () => {
+            battleText.text = "Haruna is throwing a Pokeball!";
+            wait(1.5, throwPokeball);
+        });
+
+        let pokeballs = 0;
+        let catching = false;
+
+        function throwPokeball() {
+            if (catching || battleCharmander.hp <= 0) return;
+            catching = true;
+            pokeballs++;
+
+            const pokeball = add([
+                sprite("pokeball"), 
+                pos(battleHaruna.pos), 
+                scale(0.1), 
+                anchor("center"),
+                rotate(0), 
+                z(100)
+            ]);
+
+            const throwDuration = 0.8;
+            const startPos = pokeball.pos.clone();
+            const endPos = battleCharmander.pos.clone();
+            let throwTime = 0;
+
+            pokeball.onUpdate(() => {
+                throwTime += dt();
+                pokeball.angle += 720 * dt();
+
+                const progress = throwTime / throwDuration;
+                if (progress >= 1) {
+                    destroy(pokeball);
+                    hitCharmander();
+                } else {
+                    const x = startPos.x + (endPos.x - startPos.x) * progress;
+                    const y = startPos.y + (endPos.y - startPos.y) * progress - Math.sin(progress * Math.PI) * 100;
+                    pokeball.pos = vec2(x, y);
+                }
+            });
+        }
+
+        function hitCharmander() {
+            battleCharmander.hp -= 1;
+            let flashCount = 0;
+            const flashLoop = loop(0.1, () => {
+                battleCharmander.opacity = battleCharmander.opacity === 1 ? 0.5 : 1;
+                flashCount++;
+                if (flashCount > 5) {
+                    battleCharmander.opacity = 1;
+                    flashLoop.cancel();
+                    
+                    if (battleCharmander.hp <= 0) {
+                        // CAUGHT
+                        battleText.text = "Gotcha! CHARMANDER was caught!";
+                        battleOver = true;
+                        
+                        hpBarFill.hidden = true;
+                        hpText.hidden = true;
+                        hpBarBg.hidden = true;
+
+                        tween(4, 0.2, 1.0, (val) => battleCharmander.scale = vec2(val), easings.easeOutQuad);
+                        tween(1, 0, 1.0, (val) => battleCharmander.opacity = val, easings.linear);
+
+                        wait(1.5, () => {
+                            battleCharmander.hidden = true;
+                            go("cake_scene"); 
+                        });
+                    } else {
+                        // BREAK FREE
+                        const messages = ["Oh no! The Pokemon broke free!", "It was so close!", "One more time!"];
+                        battleText.text = messages[Math.min(pokeballs-1, 2)];
+                        
+                        let shakeCount = 0;
+                        const shakeLoop = loop(0.1, () => {
+                            battleCharmander.pos.x += (shakeCount % 2 === 0 ? 5 : -5);
+                            shakeCount++;
+                            if (shakeCount >= 6) {
+                                shakeLoop.cancel();
+                                catching = false;
+                                wait(1.5, () => {
+                                    battleText.text = "Haruna throws another Pokeball!";
+                                    wait(1, throwPokeball);
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    });
+
+    scene("cake_scene", () => {
+        add([rect(width(), height()), pos(0, 0), color(88, 112, 152), z(-1)]);
+
+        const joe = add([sprite("joe"), pos(width() * 0.25, height() * 0.5), scale(0.2), anchor("center")]);
+        const haruna = add([sprite("player_stand"), pos(width() * 0.4, height() * 0.5), scale(0.2), anchor("center")]);
+        const charmander = add([
+            sprite("charmander", { flipX: true }), 
+            pos(width() * 0.7, height() * 0.55), 
+            scale(3), 
+            anchor("center")
+        ]);
+
+        const cake = add([
+            rect(40, 40), pos(width() * 0.55, height() * 0.6), anchor("center"), color(80, 40, 10),
+            "cake_cutscene",
+            {
+                draw() {
+                    drawRect({ width: 40, height: 40, color: rgb(80, 40, 10), anchor: "center" });
+                    drawCircle({ pos: vec2(0, -5), radius: 20, color: rgb(120, 60, 20) });
+                    drawRect({ width: 4, height: 10, pos: vec2(0, -25), color: rgb(255, 255, 220), anchor: "center" });
+                }
+            }
+        ]);
+
+        const dialogueBox = add([rect(width() * 0.8, 80, { radius: 4 }), pos(width() * 0.1, height() - 100), color(255, 255, 255), outline(2, color(0,0,0))]);
+        const dialogueText = add([text("", { size: 14, width: width() * 0.7 }), pos(width() * 0.15, height() - 80), color(0,0,0)]);
+
+        let lit = false;
+
+        function script() {
+            dialogueText.text = "JOE: Yay! We caught Charmander!";
+            wait(4, () => {
+                dialogueText.text = "JOE: Hey Haruna, remember that cake we found?";
+                wait(6, () => {
+                    dialogueText.text = "JOE: Charmander, can you help us light the candle?";
+                    wait(4, () => {
+                        tween(charmander.pos.x, cake.pos.x + 60, 1, (val) => charmander.pos.x = val, easings.easeOutQuad).then(() => {
+                            const fire = add([
+                                circle(10), pos(charmander.pos.x - 20, charmander.pos.y - 10), color(255, 100, 50),
+                                { update() { this.move(-100, 0); this.radius = rand(5, 12); } }
+                            ]);
+                            wait(0.5, () => {
+                                destroy(fire);
+                                lit = true;
+                                cake.use({
+                                    draw() {
+                                        drawRect({ width: 40, height: 40, color: rgb(80, 40, 10), anchor: "center" });
+                                        drawCircle({ pos: vec2(0, -5), radius: 20, color: rgb(120, 60, 20) });
+                                        drawRect({ width: 4, height: 10, pos: vec2(0, -25), color: rgb(255, 255, 220), anchor: "center" });
+                                        drawCircle({ pos: vec2(0, -35), radius: rand(4, 6), color: rgb(255, 200, 50) });
+                                        drawCircle({ pos: vec2(0, -35), radius: rand(2, 4), color: rgb(255, 100, 50) });
+                                    }
+                                });
+                                dialogueText.text = "JOE: It's lit! Make a wish and blow it out!";
+                                
+                                const prompt = add([
+                                    text("Press SPACE to blow", { size: 12 }),
+                                    pos(width()/2, height() - 130),
+                                    anchor("center"),
+                                    color(255,255,255),
+                                    { update() { this.opacity = Math.sin(time() * 5) * 0.5 + 0.5; } }
+                                ]);
+                                
+                                onKeyPress("space", () => {
+                                    if (lit) {
+                                        lit = false;
+                                        destroy(prompt);
+                                        for(let i=0; i<10; i++) {
+                                            add([
+                                                circle(2), pos(cake.pos.x, cake.pos.y - 35), color(200, 200, 200),
+                                                move(UP, rand(20, 50)), opacity(1),
+                                                { update() { this.opacity -= dt(); if(this.opacity<=0) destroy(this); } }
+                                            ]);
+                                        }
+                                        cake.unuse("draw"); 
+                                        cake.use({
+                                            draw() {
+                                                drawRect({ width: 40, height: 40, color: rgb(80, 40, 10), anchor: "center" });
+                                                drawCircle({ pos: vec2(0, -5), radius: 20, color: rgb(120, 60, 20) });
+                                                drawRect({ width: 4, height: 10, pos: vec2(0, -25), color: rgb(255, 255, 220), anchor: "center" });
+                                            }
+                                        });
+
+                                        dialogueText.text = "JOE: HAPPY BIRTHDAY HARUNA!!! <3";
+                                        wait(2, () => go("victory"));
+                                    }
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        }
+        script();
+    });
+
+    scene("victory", () => {
+        add([rect(width(), height()), pos(0, 0), color(88, 112, 152), z(-1)]);
+
         function spawnConfetti() {
             add([
-                rect(rand(4, 8), rand(4, 8)),
-                pos(rand(0, width()), rand(0, height())),
+                rect(Math.floor(rand(4, 8)), Math.floor(rand(4, 8))),
+                pos(rand(0, width()), -20),
                 color(rand(0, 255), rand(0, 255), rand(0, 255)),
-                area(),
-                move(DOWN, rand(50, 150)),
-                offscreen({ destroy: true }),
+                move(DOWN, rand(100, 200)),
+                rotate(rand(0, 360)),
+                {
+                    update() {
+                        this.angle += 5;
+                        if (this.pos.y > height()) destroy(this);
+                    }
+                }
             ]);
-            wait(0.05, spawnConfetti);
+            wait(0.1, spawnConfetti);
         }
         spawnConfetti();
 
         add([
-            text("HAPPY BIRTHDAY!", { size: 24, align: "center" }),
-            pos(center()),
+            sprite("charmander"),
+            pos(center().x, center().y - 60),
+            scale(5),
             anchor("center"),
-            color(255, 224, 32)
+            z(10),
+            { update() { this.pos.y = center().y - 60 + Math.sin(time() * 2) * 10; } }
+        ]);
+
+        add([
+            text("HAPPY BIRTHDAY HARUNA!", { size: 28, align: "center" }),
+            pos(center().x, center().y + 80),
+            anchor("center"),
+            color(255, 224, 32),
+            outline(3, color(255, 100, 100)),
+            z(20)
         ]);
         
         add([
-            text("You found the surprise!", { size: 12 }),
-            pos(center().x, center().y + 40),
+            text("You caught Charmander!", { size: 16 }),
+            pos(center().x, center().y + 120),
             anchor("center"),
-            color(255, 255, 255)
+            color(255, 255, 255),
+            outline(2, color(0, 0, 0)),
+            z(20)
+        ]);
+
+        add([
+            text("Love, Joe <3", { size: 14 }),
+            pos(center().x, center().y + 150),
+            anchor("center"),
+            color(255, 200, 200),
+            z(20)
         ]);
 
         add([
             text("Press SPACE to play again", { size: 10 }),
-            pos(center().x, center().y + 80),
+            pos(center().x, height() - 40),
             anchor("center"),
-            color(200, 200, 200)
+            color(200, 200, 200),
+            z(20)
         ]);
 
-        onKeyPress("space", () => go("main"));
+        onKeyPress("space", () => {
+            gameState = { joeFollowing: false, joeObject: null, charmanderEncountered: false, gotCake: false };
+            go("main");
+        });
     });
 
     go("main");
