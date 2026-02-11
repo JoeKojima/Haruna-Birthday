@@ -670,8 +670,8 @@
     scene("cake_scene", () => {
         add([rect(width(), height()), pos(0, 0), color(88, 112, 152), z(-1)]);
 
-        const joe = add([sprite("joe"), pos(width() * 0.25, height() * 0.5), scale(0.2), anchor("center")]);
-        const haruna = add([sprite("player_stand"), pos(width() * 0.4, height() * 0.5), scale(0.2), anchor("center")]);
+        const joe = add([sprite("joe"), pos(width() * 0.45, height() * 0.5), scale(0.2), anchor("center")]);
+        const haruna = add([sprite("player_stand"), pos(width() * 0.55, height() * 0.5), scale(0.2), anchor("center")]);
         const charmander = add([
             sprite("charmander", { flipX: true }), 
             pos(width() * 0.7, height() * 0.55), 
@@ -749,7 +749,7 @@
                                                 drawRect({ width: 4, height: 10, pos: vec2(0, -25), color: rgb(255, 255, 220), anchor: "center" });
                                             }
                                         });
-
+                                        haruna.flipX = true;
                                         dialogueText.text = "JOE: Happy Birthday Haruna!!! <3";
                                         wait(6, () => {
                                             dialogueText.text = "JOE: You're 22 now :D";
@@ -764,17 +764,17 @@
                                                             wait(6, () => {
                                                                 dialogueText.text = "JOE: I love you so so much";
                                                                 wait(6, () => {
-                                                                    dialogueText.text = "JOE: I know you'll do great at work:>";
+                                                                    dialogueText.text = "JOE: I know you'll do great at work :>";
                                                                     wait(6, () => {
                                                                         dialogueText.text = "JOE: If it gets tough though";
                                                                         wait(6, () => {
                                                                             dialogueText.text = "JOE: And I'm not available";
                                                                             wait(6, () => {
-                                                                                dialogueText.text = "JOE: You can come back here!:)";
+                                                                                dialogueText.text = "JOE: You can come back here! :)";
                                                                                 wait(6, () => {
                                                                                     dialogueText.text = "JOE: I think I'll go now";
                                                                                     wait(4, () => {
-                                                                                        dialogueText.text = "JOE: I hope you have a wonderful year;)";
+                                                                                        dialogueText.text = "JOE: I hope you have a wonderful year ;)";
                                                                                         wait(6, () => {
                                                                                             dialogueText.text = "JOE: I love you";
                                                                                             wait(5, () => go("victory"));
